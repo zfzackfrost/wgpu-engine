@@ -24,17 +24,20 @@ impl AppClient for SimpleClient {
         let Some(app) = APP.get() else {
             panic!("No active app!");
         };
-        EVENTS
-            .mouse_move
-            .lock()
-            .subscribe(FnSubscriber::new(|data| {
+        EVENTS.mouse_move.lock().subscribe(
+            FnSubscriber::new(|data| {
                 let client = app.client().downcast_arc::<SimpleClient>().unwrap();
                 client.handle_mouse_move(data);
-            }));
-        EVENTS.keyboard.lock().subscribe(FnSubscriber::new(|data| {
-            let client = app.client().downcast_arc::<SimpleClient>().unwrap();
-            client.handle_keyboard(data);
-        }));
+            })
+            .boxed(),
+        );
+        EVENTS.keyboard.lock().subscribe(
+            FnSubscriber::new(|data| {
+                let client = app.client().downcast_arc::<SimpleClient>().unwrap();
+                client.handle_keyboard(data);
+            })
+            .boxed(),
+        );
         let mut state = app.state();
         let state = state.as_mut().unwrap();
 

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use downcast_rs::{DowncastSync, impl_downcast};
 
+#[allow(unused_variables)]
 pub trait AppClient: DowncastSync + std::fmt::Debug {
     fn init(&self) {}
     fn update(&self, delta_time: f32) {}
