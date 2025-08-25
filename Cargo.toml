@@ -1,0 +1,36 @@
+[package]
+name = "wgpu-engine"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = ["tools/*", "example/*"]
+
+[dependencies]
+anyhow = "1.0"
+bytemuck = { version = "1.23", features = ["derive"] }
+downcast-rs = "2.0.1"
+educe = "0.6"
+env_logger = "0.11"
+glam = { version = "0.30", features = ["serde"] }
+log = "0.4"
+parking_lot = "0.12"
+pollster = "0.4"
+web-time = "1.1"
+wgpu = "26.0"
+winit = { version = "0.30", features = ["android-native-activity"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+wgpu = { version = "26.0", features = [
+  "webgl",
+  "fragile-send-sync-non-atomic-wasm",
+] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = [
+  "Document", #
+  "Window",   #
+  "Element",  #
+] }
