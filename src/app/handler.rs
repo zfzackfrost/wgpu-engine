@@ -140,20 +140,20 @@ impl ApplicationHandler<State> for SharedApp {
                     }
                 };
                 let data = MouseWheelData { delta };
-                EVENTS.mouse_wheel.lock().notify(&data);
+                EVENTS.mouse_wheel().notify(&data);
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 let data = MouseButtonData {
                     is_pressed: state.is_pressed(),
                     button,
                 };
-                EVENTS.mouse_button.lock().notify(&data);
+                EVENTS.mouse_button().notify(&data);
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let data = MouseMoveData {
                     position: glam::vec2(position.x as f32, position.y as f32),
                 };
-                EVENTS.mouse_move.lock().notify(&data);
+                EVENTS.mouse_move().notify(&data);
             }
             WindowEvent::KeyboardInput {
                 event:
@@ -170,7 +170,7 @@ impl ApplicationHandler<State> for SharedApp {
                     is_pressed: state.is_pressed(),
                     is_repeat: repeat,
                 };
-                EVENTS.keyboard.lock().notify(&data);
+                EVENTS.keyboard().notify(&data);
             }
             _ => {}
         }

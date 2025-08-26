@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
+
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
@@ -15,15 +16,29 @@ pub static EVENTS: LazyLock<Events> = LazyLock::new(|| {
     }
 });
 
-pub type EventPublisher<Data> = Publisher<Data, Box<dyn Subscriber<Data>>>;
+type EventPublisher<Data> = Publisher<Data, Box<dyn Subscriber<Data>>>;
 type MutEventPublisher<Data> = Mutex<EventPublisher<Data>>;
+type GuardEventPublisher<'a, Data> = MutexGuard<'a, EventPublisher<Data>>;
 
-#[non_exhaustive]
 pub struct Events {
-    pub mouse_move: MutEventPublisher<MouseMoveData>,
-    pub mouse_wheel: MutEventPublisher<MouseWheelData>,
-    pub mouse_button: MutEventPublisher<MouseButtonData>,
-    pub keyboard: MutEventPublisher<KeyboardData>,
+    mouse_move: MutEventPublisher<MouseMoveData>,
+    mouse_wheel: MutEventPublisher<MouseWheelData>,
+    mouse_button: MutEventPublisher<MouseButtonData>,
+    keyboard: MutEventPublisher<KeyboardData>,
+}
+impl Events {
+    pub fn mouse_move(&self) -> GuardEventPublisher<'_, MouseMoveData> {
+        self.mouse_move.lock()
+    }
+    pub fn mouse_wheel(&self) -> GuardEventPublisher<'_, MouseWheelData> {
+        self.mouse_wheel.lock()
+    }
+    pub fn mouse_button(&self) -> GuardEventPublisher<'_, MouseButtonData> {
+        self.mouse_button.lock()
+    }
+    pub fn keyboard(&self) -> GuardEventPublisher<'_, KeyboardData> {
+        self.keyboard.lock()
+    }
 }
 
 pub struct MouseMoveData {
@@ -33,8 +48,8 @@ pub struct MouseWheelData {
     pub delta: glam::Vec2,
 }
 pub struct MouseButtonData {
-    pub is_pressed: bool,
     pub button: MouseButton,
+    pub is_pressed: bool,
 }
 pub struct KeyboardData {
     pub key_code: KeyCode,
