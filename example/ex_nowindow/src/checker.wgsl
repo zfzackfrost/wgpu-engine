@@ -1,10 +1,3 @@
-
-// Bindings:
-// 0: storage texture (rgba8unorm)
-
-@group(0) @binding(0)
-var out_image: texture_storage_2d<rgba8unorm, write>;
-
 struct ComputeInputs {
     @builtin(global_invocation_id) gid: vec3<u32>,
 };
@@ -14,8 +7,17 @@ struct Params {
     color_b: vec4f,
     checker_size: u32,
 };
+
+// Binding Group 0:
+// 0: storage texture (rgba8unorm)
+// 1: uniform buffer (Params)
+
+@group(0) @binding(0)
+var out_image: texture_storage_2d<rgba8unorm, write>;
+
 @group(0) @binding(1)
 var<uniform> params: Params;
+
 
 fn store_checker_tex(inputs: ComputeInputs) {
     // Compute which checker cell this pixel belongs to
