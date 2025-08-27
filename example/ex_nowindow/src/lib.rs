@@ -11,10 +11,11 @@ pub fn run() -> anyhow::Result<()> {
     let params = make_params_buffer(
         &state,
         ComputeParams {
-            color_a: [1.0, 1.0, 1.0, 1.0],
-            color_b: [0.0, 0.0, 1.0, 1.0],
+            color_a: glam::vec4(0.5, 0.5, 0.5, 1.0),
+            color_b: glam::vec4(1.0, 1.0, 1.0, 1.0),
+            line_color: glam::vec4(0.0, 0.0, 0.0, 1.0),
+            line_thickness: 3,
             checker_size: 128,
-            pad: [0; 3],
         },
     );
 
@@ -85,27 +86,30 @@ pub fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-#[derive(bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(encase::ShaderType)]
 struct ComputeParams {
-    color_a: [f32; 4],
-    color_b: [f32; 4],
+    color_a: glam::Vec4,
+    color_b: glam::Vec4,
+    line_color: glam::Vec4,
+    line_thickness: u32,
     checker_size: u32,
-    pad: [u32; 3],
 }
 
 fn make_params_buffer(state: &State, params: ComputeParams) -> wgpu::Buffer {
     use wgpu::util::{self, DeviceExt};
+
+    let mut data = encase::UniformBuffer::new(Vec::<u8>::new());
+    data.write(&params).unwrap();
+    let bytes = data.into_inner();
+
     state
         .device
         .create_buffer_init(&util::BufferInitDescriptor {
             label: Some("Params"),
-            contents: bytemuck::cast_slice(&[params]),
+            contents: &bytes,
             usage: wgpu::BufferUsages::UNIFORM,
         })
 }
-
 fn make_staging_buffer(state: &State, storage_size: (u32, u32)) -> wgpu::Buffer {
     let (width, height) = storage_size;
     let buffer_size = (width * height * 4) as wgpu::BufferAddress;
@@ -134,7 +138,6 @@ fn make_storage_texture(state: &State, storage_size: (u32, u32)) -> wgpu::Textur
     };
     state.device.create_texture(&desc)
 }
-
 fn make_compute_bind_groups(
     state: &State,
     storage: &wgpu::Texture,

@@ -5,6 +5,8 @@ struct ComputeInputs {
 struct Params {
     color_a: vec4f,
     color_b: vec4f,
+    line_color: vec4f,
+    line_thickness: u32,
     checker_size: u32,
 };
 
@@ -18,7 +20,9 @@ var out_image: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(1)
 var<uniform> params: Params;
 
-
+fn store_line(inputs: ComputeInputs) {
+    textureStore(out_image, vec2i(inputs.gid.xy), params.line_color);
+}
 fn store_checker_tex(inputs: ComputeInputs) {
     // Compute which checker cell this pixel belongs to
     let cx = inputs.gid.x / params.checker_size;
@@ -36,7 +40,12 @@ fn store_checker_tex(inputs: ComputeInputs) {
 fn cs_main(inputs: ComputeInputs) {
     let size = textureDimensions(out_image);
     if (inputs.gid.x < size.x && inputs.gid.y < size.y) {
-        store_checker_tex(inputs);
+        let pixel = vec2u(inputs.gid.xy) % vec2u(params.checker_size);
+        if pixel.x < params.line_thickness || pixel.y < params.line_thickness {
+            store_line(inputs);
+        } else {
+            store_checker_tex(inputs);
+        }
     }
 }
 

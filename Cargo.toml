@@ -8,9 +8,9 @@ members = ["tools/*", "example/*"]
 
 [dependencies]
 anyhow = "1.0"
-bytemuck = { version = "1.23", features = ["derive"] }
 downcast-rs = "2.0.1"
 educe = "0.6"
+encase = { version = "0.11.2", features = ["glam"] }
 env_logger = "0.11"
 glam = { version = "0.30", features = ["serde"] }
 log = "0.4"

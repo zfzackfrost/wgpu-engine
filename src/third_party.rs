@@ -1,7 +1,6 @@
 #[rustfmt::skip]
 mod _exports {
     pub use anyhow;
-    pub use bytemuck;
     pub use glam;
     pub use log;
     pub use web_time;
