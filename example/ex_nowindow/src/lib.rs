@@ -3,13 +3,22 @@ use wgpu_engine::*;
 
 use image::{ImageBuffer, Rgba};
 
-pub async fn run() {
-    let state = State::new(None).await.unwrap();
+pub fn run() -> anyhow::Result<()> {
+    let state = pollster::block_on(State::new(None))?;
 
     let storage_size = (1024u32, 1024u32);
     let storage = make_storage_texture(&state, storage_size);
+    let params = make_params_buffer(
+        &state,
+        ComputeParams {
+            color_a: [1.0, 1.0, 1.0, 1.0],
+            color_b: [0.0, 0.0, 1.0, 1.0],
+            checker_size: 128,
+            pad: [0; 3],
+        },
+    );
 
-    let (group_layouts, groups) = make_compute_bind_groups(&state, &storage);
+    let (group_layouts, groups) = make_compute_bind_groups(&state, &storage, &params);
     let group_layouts: Vec<_> = group_layouts.iter().collect();
 
     let compute = make_compute_pipeline(&state, &group_layouts);
@@ -56,12 +65,12 @@ pub async fn run() {
         },
     );
     state.queue.submit(Some(encoder.finish()));
-    state.device.poll(wgpu::PollType::Wait).unwrap();
+    state.device.poll(wgpu::PollType::Wait)?;
 
     let buffer_slice = staging.slice(..);
     buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
 
-    state.device.poll(wgpu::PollType::Wait).unwrap();
+    state.device.poll(wgpu::PollType::Wait)?;
 
     let data = buffer_slice.get_mapped_range();
     let bytes: Vec<u8> = data.to_vec(); // copy into CPU memory
@@ -71,7 +80,30 @@ pub async fn run() {
 
     let img: ImageBuffer<Rgba<u8>, _> =
         ImageBuffer::from_raw(storage_size.0, storage_size.1, bytes).unwrap();
-    img.save("output.png").unwrap();
+    img.save("output.png")?;
+
+    Ok(())
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable)]
+struct ComputeParams {
+    color_a: [f32; 4],
+    color_b: [f32; 4],
+    checker_size: u32,
+    pad: [u32; 3],
+}
+
+fn make_params_buffer(state: &State, params: ComputeParams) -> wgpu::Buffer {
+    use wgpu::util::{self, DeviceExt};
+    state
+        .device
+        .create_buffer_init(&util::BufferInitDescriptor {
+            label: Some("Params"),
+            contents: bytemuck::cast_slice(&[params]),
+            usage: wgpu::BufferUsages::UNIFORM,
+        })
 }
 
 fn make_staging_buffer(state: &State, storage_size: (u32, u32)) -> wgpu::Buffer {
@@ -106,30 +138,49 @@ fn make_storage_texture(state: &State, storage_size: (u32, u32)) -> wgpu::Textur
 fn make_compute_bind_groups(
     state: &State,
     storage: &wgpu::Texture,
+    params: &wgpu::Buffer,
 ) -> (Vec<wgpu::BindGroupLayout>, Vec<wgpu::BindGroup>) {
     let group_layout_0 = state
         .device
         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Group0 Layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::StorageTexture {
-                    access: wgpu::StorageTextureAccess::WriteOnly,
-                    format: wgpu::TextureFormat::Rgba8Unorm,
-                    view_dimension: wgpu::TextureViewDimension::D2,
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::StorageTexture {
+                        access: wgpu::StorageTextureAccess::WriteOnly,
+                        format: wgpu::TextureFormat::Rgba8Unorm,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
         });
     let storage_view = storage.create_view(&wgpu::TextureViewDescriptor::default());
     let group_0 = state.device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("Group0"),
         layout: &group_layout_0,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: wgpu::BindingResource::TextureView(&storage_view),
-        }],
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&storage_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: params.as_entire_binding(),
+            },
+        ],
     });
 
     let groups = vec![group_0];

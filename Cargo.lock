@@ -1015,6 +1015,7 @@ dependencies = [
 name = "ex_nowindow"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "image",
  "wgpu-engine",
 ]

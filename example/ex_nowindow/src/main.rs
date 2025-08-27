@@ -1,5 +1,5 @@
-use wgpu_engine::third_party::pollster;
+use wgpu_engine::third_party::anyhow;
 
-fn main() {
-    pollster::block_on(ex_nowindow::run());
+fn main() -> anyhow::Result<()> {
+    ex_nowindow::run()
 }
