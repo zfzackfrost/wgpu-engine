@@ -1,0 +1,8 @@
+[package]
+name = "ex_nowindow"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+image = { version = "0.25.6", features = ["png"], default-features = false }
+wgpu-engine = { version = "0.1.0", path = "../.." }

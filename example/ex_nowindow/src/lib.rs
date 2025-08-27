@@ -1,0 +1,170 @@
+use wgpu_engine::third_party::*;
+use wgpu_engine::*;
+
+use image::{ImageBuffer, Rgba};
+
+pub async fn run() {
+    let state = State::new(None).await.unwrap();
+
+    let storage_size = (1024u32, 1024u32);
+    let storage = make_storage_texture(&state, storage_size);
+
+    let (group_layouts, groups) = make_compute_bind_groups(&state, &storage);
+    let group_layouts: Vec<_> = group_layouts.iter().collect();
+
+    let compute = make_compute_pipeline(&state, &group_layouts);
+    let staging = make_staging_buffer(&state, storage_size);
+
+    let mut encoder = state
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Compute Commands"),
+        });
+    {
+        let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("Compute Pass"),
+            timestamp_writes: None,
+        });
+        cpass.set_pipeline(&compute);
+        for (i, bg) in groups.iter().enumerate() {
+            cpass.set_bind_group(i as u32, bg, &[]);
+        }
+
+        let workgroups_x = storage_size.0.div_ceil(8);
+        let workgroups_y = storage_size.1.div_ceil(8);
+        cpass.dispatch_workgroups(workgroups_x, workgroups_y, 1);
+    }
+    encoder.copy_texture_to_buffer(
+        wgpu::TexelCopyTextureInfo {
+            texture: &storage,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        wgpu::TexelCopyBufferInfoBase {
+            buffer: &staging,
+            layout: wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * storage_size.0),
+                rows_per_image: Some(storage_size.1),
+            },
+        },
+        wgpu::Extent3d {
+            width: storage_size.0,
+            height: storage_size.1,
+            depth_or_array_layers: 1,
+        },
+    );
+    state.queue.submit(Some(encoder.finish()));
+    state.device.poll(wgpu::PollType::Wait).unwrap();
+
+    let buffer_slice = staging.slice(..);
+    buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
+
+    state.device.poll(wgpu::PollType::Wait).unwrap();
+
+    let data = buffer_slice.get_mapped_range();
+    let bytes: Vec<u8> = data.to_vec(); // copy into CPU memory
+    drop(data);
+
+    staging.unmap();
+
+    let img: ImageBuffer<Rgba<u8>, _> =
+        ImageBuffer::from_raw(storage_size.0, storage_size.1, bytes).unwrap();
+    img.save("output.png").unwrap();
+}
+
+fn make_staging_buffer(state: &State, storage_size: (u32, u32)) -> wgpu::Buffer {
+    let (width, height) = storage_size;
+    let buffer_size = (width * height * 4) as wgpu::BufferAddress;
+    state.device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Staging Buffer"),
+        size: buffer_size,
+        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    })
+}
+fn make_storage_texture(state: &State, storage_size: (u32, u32)) -> wgpu::Texture {
+    let (width, height) = storage_size;
+    let desc = wgpu::TextureDescriptor {
+        label: Some("Shader Storage"),
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    };
+    state.device.create_texture(&desc)
+}
+
+fn make_compute_bind_groups(
+    state: &State,
+    storage: &wgpu::Texture,
+) -> (Vec<wgpu::BindGroupLayout>, Vec<wgpu::BindGroup>) {
+    let group_layout_0 = state
+        .device
+        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Group0 Layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::StorageTexture {
+                    access: wgpu::StorageTextureAccess::WriteOnly,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                },
+                count: None,
+            }],
+        });
+    let storage_view = storage.create_view(&wgpu::TextureViewDescriptor::default());
+    let group_0 = state.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("Group0"),
+        layout: &group_layout_0,
+        entries: &[wgpu::BindGroupEntry {
+            binding: 0,
+            resource: wgpu::BindingResource::TextureView(&storage_view),
+        }],
+    });
+
+    let groups = vec![group_0];
+    let group_layouts = vec![group_layout_0];
+
+    (group_layouts, groups)
+}
+fn make_compute_pipeline(
+    state: &State,
+    bind_group_layouts: &[&wgpu::BindGroupLayout],
+) -> wgpu::ComputePipeline {
+    let code = include_str!("./checker.wgsl");
+    let checker_module = state
+        .device
+        .create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("checker.wgsl"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(code)),
+        });
+
+    let layout = state
+        .device
+        .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("checker.wgsl Layout"),
+            bind_group_layouts,
+            push_constant_ranges: &[],
+        });
+
+    state
+        .device
+        .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("checker.wgsl Pipeline"),
+            layout: Some(&layout),
+            module: &checker_module,
+            entry_point: Some("cs_main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        })
+}

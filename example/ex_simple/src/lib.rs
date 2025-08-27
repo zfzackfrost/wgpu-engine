@@ -86,7 +86,7 @@ impl AppClient for SimpleClient {
                     entry_point: Some("fs_main"),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: state.config.format,
+                        format: state.config.clone().unwrap().format,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -112,8 +112,9 @@ impl SimpleClient {
         };
         let mut state = app.state();
         let state: &mut wgpu_engine::State = state.as_mut().unwrap();
-        let w = state.config.width;
-        let h = state.config.height;
+        let config = state.config.as_ref().unwrap();
+        let w = config.width;
+        let h = config.height;
         state.clear_color = (data.position / glam::vec2(w as f32, h as f32))
             .extend(0.0)
             .extend(1.0);

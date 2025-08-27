@@ -45,7 +45,7 @@ impl ApplicationHandler<State> for SharedApp {
             // If we are not on web we can use pollster to
             // await the
             let mut state = self.state.lock();
-            *state = Some(pollster::block_on(State::new(window)).unwrap());
+            *state = Some(pollster::block_on(State::new(Some(window))).unwrap());
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -124,7 +124,7 @@ impl ApplicationHandler<State> for SharedApp {
                 match state.render() {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        let size = state.window.inner_size();
+                        let size = state.window.as_ref().unwrap().inner_size();
                         state.resize(size.width, size.height);
                     }
                     Err(e) => {

@@ -9,6 +9,8 @@ mod _exports {
     pub use parking_lot;
     pub use educe;
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub use pollster;
     #[cfg(target_arch = "wasm32")]
     pub use console_error_panic_hook;
 }
