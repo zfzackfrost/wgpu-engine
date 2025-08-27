@@ -21,20 +21,20 @@ var<uniform> params: Params;
 
 fn store_checker_tex(inputs: ComputeInputs) {
     // Compute which checker cell this pixel belongs to
-    let cx: u32 = inputs.gid.x / params.checker_size;
-    let cy: u32 = inputs.gid.y / params.checker_size;
+    let cx = inputs.gid.x / params.checker_size;
+    let cy = inputs.gid.y / params.checker_size;
 
     // Alternate color based on parity
-    let is_dark: bool = (cx + cy) % 2u == 0u;
-    let color: vec4<f32> = select(params.color_a, params.color_b, is_dark);
+    let is_dark = (cx + cy) % 2u == 0u;
+    let color = select(params.color_a, params.color_b, is_dark);
 
     // Store `color` in `out_image`
-    textureStore(out_image, vec2<i32>(inputs.gid.xy), color);
+    textureStore(out_image, vec2i(inputs.gid.xy), color);
 }
 
 @compute @workgroup_size(8, 8)
 fn cs_main(inputs: ComputeInputs) {
-    let size: vec2<u32> = textureDimensions(out_image);
+    let size = textureDimensions(out_image);
     if (inputs.gid.x < size.x && inputs.gid.y < size.y) {
         store_checker_tex(inputs);
     }
