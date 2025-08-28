@@ -22,7 +22,6 @@ pub struct App {
     exit: Mutex<bool>,
 }
 impl App {
-    #[allow(clippy::new_without_default)]
     #[allow(clippy::new_ret_no_self)]
     pub fn new(
         client: SharedAppClient,
