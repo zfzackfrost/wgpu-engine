@@ -2,7 +2,7 @@
 use wasm_bindgen::prelude::*;
 pub use winit::event_loop::EventLoop;
 
-use crate::app::{APP, App, SharedAppClient};
+use crate::app::{App, SharedAppClient, set_app};
 pub fn run(client: SharedAppClient) -> anyhow::Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -19,7 +19,7 @@ pub fn run(client: SharedAppClient) -> anyhow::Result<()> {
         #[cfg(target_arch = "wasm32")]
         &event_loop,
     );
-    assert!(APP.set(app.clone()).is_ok(), "APP was already initialized!");
+    set_app(app.clone());
     event_loop.run_app(&mut app)?;
     Ok(())
 }
