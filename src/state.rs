@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use winit::window::Window;
 
-use crate::APP;
+use crate::app;
 
 pub struct State {
     pub adapter: wgpu::Adapter,
@@ -150,10 +150,7 @@ impl State {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            let Some(app) = APP.get() else {
-                panic!("No active app!");
-            };
-            app.client().render(&mut render_pass);
+            app().client().render(&mut render_pass);
         }
         self.queue.submit(Some(encoder.finish()));
         output.present();
