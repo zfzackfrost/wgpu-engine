@@ -21,23 +21,21 @@ impl SimpleClient {
 
 impl AppClient for SimpleClient {
     fn init(&self) {
-        let Some(app) = APP.get() else {
-            panic!("No active app!");
-        };
         EVENTS.mouse_move().subscribe(
             FnSubscriber::new(|data| {
-                let client = app.client().downcast_arc::<SimpleClient>().unwrap();
+                let client = app().client().downcast_arc::<SimpleClient>().unwrap();
                 client.handle_mouse_move(data);
             })
             .boxed(),
         );
         EVENTS.keyboard().subscribe(
             FnSubscriber::new(|data| {
-                let client = app.client().downcast_arc::<SimpleClient>().unwrap();
+                let client = app().client().downcast_arc::<SimpleClient>().unwrap();
                 client.handle_keyboard(data);
             })
             .boxed(),
         );
+        let app = app();
         let mut state = app.state();
         let state = state.as_mut().unwrap();
 
@@ -107,9 +105,7 @@ impl AppClient for SimpleClient {
 }
 impl SimpleClient {
     fn handle_mouse_move(&self, data: &MouseMoveData) {
-        let Some(app) = APP.get() else {
-            return;
-        };
+        let app = app();
         let mut state = app.state();
         let state: &mut wgpu_engine::State = state.as_mut().unwrap();
         let config = state.config.as_ref().unwrap();
@@ -121,10 +117,7 @@ impl SimpleClient {
     }
     fn handle_keyboard(&self, data: &KeyboardData) {
         if data.is_pressed && data.key_code == KeyCode::Escape {
-            let Some(app) = APP.get() else {
-                return;
-            };
-            app.exit();
+            app().exit();
         }
     }
 }

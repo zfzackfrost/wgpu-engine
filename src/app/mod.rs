@@ -1,15 +1,15 @@
 mod client;
+mod current;
 mod handler;
 pub use client::*;
+pub use current::*;
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use parking_lot::{Mutex, MutexGuard};
 use web_time::{Duration, Instant};
 
 use crate::state::State;
-
-pub static APP: OnceLock<SharedApp> = OnceLock::new();
 
 pub struct App {
     #[cfg(target_arch = "wasm32")]
