@@ -22,8 +22,7 @@ pub struct App {
     exit: Mutex<bool>,
 }
 impl App {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(
+    pub(crate) fn from_client(
         client: SharedAppClient,
         #[cfg(target_arch = "wasm32")] event_loop: &EventLoop<State>,
     ) -> SharedApp {
