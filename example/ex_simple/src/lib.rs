@@ -21,7 +21,7 @@ impl SimpleClient {
 
 impl AppClient for SimpleClient {
     fn init(&self) {
-        let client = app().client().downcast_arc::<SimpleClient>().unwrap();
+        let client = app_client_as::<Self>().unwrap();
         {
             let client = client.clone();
             EVENTS.mouse_move().subscribe(
