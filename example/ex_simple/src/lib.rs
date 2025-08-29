@@ -21,20 +21,25 @@ impl SimpleClient {
 
 impl AppClient for SimpleClient {
     fn init(&self) {
-        EVENTS.mouse_move().subscribe(
-            FnSubscriber::new(|data| {
-                let client = app().client().downcast_arc::<SimpleClient>().unwrap();
-                client.handle_mouse_move(data);
-            })
-            .boxed(),
-        );
-        EVENTS.keyboard().subscribe(
-            FnSubscriber::new(|data| {
-                let client = app().client().downcast_arc::<SimpleClient>().unwrap();
-                client.handle_keyboard(data);
-            })
-            .boxed(),
-        );
+        let client = app().client().downcast_arc::<SimpleClient>().unwrap();
+        {
+            let client = client.clone();
+            EVENTS.mouse_move().subscribe(
+                FnSubscriber::new(move |data| {
+                    client.handle_mouse_move(data);
+                })
+                .boxed(),
+            );
+        }
+        {
+            let client = client.clone();
+            EVENTS.keyboard().subscribe(
+                FnSubscriber::new(move |data| {
+                    client.handle_keyboard(data);
+                })
+                .boxed(),
+            );
+        }
         let app = app();
         let mut state = app.state();
         let state = state.as_mut().unwrap();
