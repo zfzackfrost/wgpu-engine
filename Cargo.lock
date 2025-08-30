@@ -1053,7 +1053,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ex_nowindow"
+name = "ex_compute_headless"
 version = "0.1.0"
 dependencies = [
  "encase",
