@@ -114,6 +114,7 @@ impl ApplicationHandler<State> for SharedApp {
                         *is_initialized = true;
                     }
                 }
+                EVENTS.update().notify(&());
                 self.client.update(delta_time.as_secs_f32());
 
                 let mut state = self.state.lock();
@@ -181,6 +182,7 @@ impl ApplicationHandler<State> for SharedApp {
 
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         let _ = (event_loop, cause);
+        EVENTS.start_of_frame().notify(&());
     }
 
     fn device_event(
@@ -193,9 +195,11 @@ impl ApplicationHandler<State> for SharedApp {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if *self.exit.lock() {
-            event_loop.exit();
+        if !*self.exit.lock() {
+            EVENTS.end_of_frame().notify(&());
+            return;
         }
+        event_loop.exit();
     }
 
     fn suspended(&mut self, event_loop: &ActiveEventLoop) {

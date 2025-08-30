@@ -9,10 +9,13 @@ use crate::observer::{FnSubscriber, Publisher, Subscriber};
 
 pub static EVENTS: LazyLock<Events> = LazyLock::new(|| {
     let events = Events {
+        start_of_frame: Mutex::new(Publisher::new()),
+        update: Mutex::new(Publisher::new()),
         mouse_move: Mutex::new(Publisher::new()),
         mouse_wheel: Mutex::new(Publisher::new()),
         mouse_button: Mutex::new(Publisher::new()),
         keyboard: Mutex::new(Publisher::new()),
+        end_of_frame: Mutex::new(Publisher::new()),
         last_mouse_position: Mutex::new(None),
     };
     events.init();
@@ -24,10 +27,14 @@ type MutEventPublisher<Data> = Mutex<EventPublisher<Data>>;
 type GuardEventPublisher<'a, Data> = MutexGuard<'a, EventPublisher<Data>>;
 
 pub struct Events {
+    start_of_frame: MutEventPublisher<()>,
+    update: MutEventPublisher<()>,
     mouse_move: MutEventPublisher<MouseMoveData>,
     mouse_wheel: MutEventPublisher<MouseWheelData>,
     mouse_button: MutEventPublisher<MouseButtonData>,
     keyboard: MutEventPublisher<KeyboardData>,
+    end_of_frame: MutEventPublisher<()>,
+
     last_mouse_position: Mutex<Option<glam::Vec2>>,
 }
 impl Events {
@@ -44,6 +51,12 @@ impl Events {
         self.last_mouse_position.lock().unwrap_or(glam::Vec2::ZERO)
     }
 
+    pub fn start_of_frame(&self) -> GuardEventPublisher<'_, ()> {
+        self.start_of_frame.lock()
+    }
+    pub fn update(&self) -> GuardEventPublisher<'_, ()> {
+        self.update.lock()
+    }
     pub fn mouse_move(&self) -> GuardEventPublisher<'_, MouseMoveData> {
         self.mouse_move.lock()
     }
@@ -55,6 +68,9 @@ impl Events {
     }
     pub fn keyboard(&self) -> GuardEventPublisher<'_, KeyboardData> {
         self.keyboard.lock()
+    }
+    pub fn end_of_frame(&self) -> GuardEventPublisher<'_, ()> {
+        self.end_of_frame.lock()
     }
 }
 
