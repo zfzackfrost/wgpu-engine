@@ -1,7 +1,9 @@
 use parking_lot::Mutex;
 
 pub trait Subscriber<T>: Send {
-    fn priority(&self) -> i16;
+    fn priority(&self) -> i16 {
+        0
+    }
     fn handle_event(&self, data: &T);
 }
 impl<T> Subscriber<T> for Box<dyn Subscriber<T>> {
