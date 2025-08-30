@@ -150,8 +150,11 @@ impl ApplicationHandler<State> for SharedApp {
                 EVENTS.mouse_button().notify(&data);
             }
             WindowEvent::CursorMoved { position, .. } => {
+                let last = EVENTS.last_mouse_position();
+                let current = glam::vec2(position.x as f32, position.y as f32);
                 let data = MouseMoveData {
-                    position: glam::vec2(position.x as f32, position.y as f32),
+                    position: current,
+                    delta: current - last,
                 };
                 EVENTS.mouse_move().notify(&data);
             }

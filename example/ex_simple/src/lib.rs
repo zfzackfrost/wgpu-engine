@@ -119,6 +119,8 @@ impl SimpleClient {
         state.clear_color = (data.position / glam::vec2(w as f32, h as f32))
             .extend(0.0)
             .extend(1.0);
+        let delta = data.delta;
+        log::info!("Mouse Delta: ({}, {})", delta.x, delta.y);
     }
     fn handle_keyboard(&self, data: &KeyboardData) {
         if data.is_pressed && data.key_code == KeyCode::Escape {

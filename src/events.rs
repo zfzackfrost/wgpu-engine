@@ -5,15 +5,18 @@ use parking_lot::{Mutex, MutexGuard};
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
-use crate::observer::{Publisher, Subscriber};
+use crate::observer::{FnSubscriber, Publisher, Subscriber};
 
 pub static EVENTS: LazyLock<Events> = LazyLock::new(|| {
-    Events {
+    let events = Events {
         mouse_move: Mutex::new(Publisher::new()),
         mouse_wheel: Mutex::new(Publisher::new()),
         mouse_button: Mutex::new(Publisher::new()),
         keyboard: Mutex::new(Publisher::new()),
-    }
+        last_mouse_position: Mutex::new(None),
+    };
+    events.init();
+    events
 });
 
 type EventPublisher<Data> = Publisher<Data, Box<dyn Subscriber<Data>>>;
@@ -25,8 +28,22 @@ pub struct Events {
     mouse_wheel: MutEventPublisher<MouseWheelData>,
     mouse_button: MutEventPublisher<MouseButtonData>,
     keyboard: MutEventPublisher<KeyboardData>,
+    last_mouse_position: Mutex<Option<glam::Vec2>>,
 }
 impl Events {
+    fn init(&self) {
+        self.mouse_move().subscribe(
+            FnSubscriber::new(|data: &MouseMoveData| {
+                *EVENTS.last_mouse_position.lock() = Some(data.position);
+            })
+            .with_priority(i16::MAX)
+            .boxed(),
+        );
+    }
+    pub(crate) fn last_mouse_position(&self) -> glam::Vec2 {
+        self.last_mouse_position.lock().unwrap_or(glam::Vec2::ZERO)
+    }
+
     pub fn mouse_move(&self) -> GuardEventPublisher<'_, MouseMoveData> {
         self.mouse_move.lock()
     }
@@ -43,6 +60,7 @@ impl Events {
 
 pub struct MouseMoveData {
     pub position: glam::Vec2,
+    pub delta: glam::Vec2,
 }
 pub struct MouseWheelData {
     pub delta: glam::Vec2,
