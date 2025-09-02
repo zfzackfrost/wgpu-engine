@@ -1,3 +1,9 @@
+//! Application event handling implementation
+//!
+//! This module implements the `ApplicationHandler` trait for `SharedApp`,
+//! providing event handling for window events, input events, and the main
+//! application loop.
+
 use std::sync::Arc;
 
 use web_time::Instant;
@@ -20,6 +26,8 @@ use winit::event_loop::EventLoop;
 use super::SharedApp;
 
 impl ApplicationHandler<State> for SharedApp {
+    /// Called when the application is resumed or started
+    /// Creates the window and initializes the rendering state
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[allow(unused_mut)]
         let mut window_attributes = Window::default_attributes();
@@ -66,9 +74,10 @@ impl ApplicationHandler<State> for SharedApp {
         }
     }
 
+    /// Handles custom user events, specifically State events from WASM
+    /// This is where proxy.send_event() ends up
     #[allow(unused_mut)]
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: State) {
-        // This is where proxy.send_event() ends up
         #[cfg(target_arch = "wasm32")]
         {
             event.window.request_redraw();
@@ -81,6 +90,7 @@ impl ApplicationHandler<State> for SharedApp {
         *state = Some(event);
     }
 
+    /// Handles window events such as resize, close, input, and redraw requests
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -98,6 +108,7 @@ impl ApplicationHandler<State> for SharedApp {
                 state.resize(size.width, size.height);
             }
             WindowEvent::RedrawRequested => {
+                // Calculate delta time for this frame
                 let delta_time = {
                     let mut last_time = self.last_frame_time.lock();
                     let now = Instant::now();
@@ -107,6 +118,7 @@ impl ApplicationHandler<State> for SharedApp {
                 };
                 *self.elapsed.lock() += delta_time;
 
+                // Initialize the client on first frame
                 {
                     let mut is_initialized = self.is_initialized.lock();
                     if !*is_initialized {
@@ -114,6 +126,7 @@ impl ApplicationHandler<State> for SharedApp {
                         *is_initialized = true;
                     }
                 }
+                // Notify update start and run client update
                 EVENTS.update().notify(&());
                 self.client.update(delta_time.as_secs_f32());
 
@@ -180,11 +193,13 @@ impl ApplicationHandler<State> for SharedApp {
         }
     }
 
+    /// Called at the start of each event loop iteration
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         let _ = (event_loop, cause);
         EVENTS.start_of_frame().notify(&());
     }
 
+    /// Handles device events (currently unused)
     fn device_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -194,6 +209,8 @@ impl ApplicationHandler<State> for SharedApp {
         let _ = (event_loop, device_id, event);
     }
 
+    /// Called when the event loop is about to wait for new events
+    /// Handles application exit logic and frame end notifications
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if !*self.exit.lock() {
             EVENTS.end_of_frame().notify(&());
@@ -202,14 +219,17 @@ impl ApplicationHandler<State> for SharedApp {
         event_loop.exit();
     }
 
+    /// Called when the application is suspended (currently unused)
     fn suspended(&mut self, event_loop: &ActiveEventLoop) {
         let _ = event_loop;
     }
 
+    /// Called when the application is exiting (currently unused)
     fn exiting(&mut self, event_loop: &ActiveEventLoop) {
         let _ = event_loop;
     }
 
+    /// Called when the system issues a memory warning (currently unused)
     fn memory_warning(&mut self, event_loop: &ActiveEventLoop) {
         let _ = event_loop;
     }
