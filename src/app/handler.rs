@@ -15,7 +15,7 @@ use winit::keyboard::PhysicalKey;
 use winit::window::Window;
 
 use crate::events::{EVENTS, KeyboardData};
-use crate::state::State;
+use crate::gfx::state::State;
 use crate::{MouseButtonData, MouseMoveData, MouseWheelData};
 
 #[cfg(target_arch = "wasm32")]

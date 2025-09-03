@@ -2,8 +2,8 @@
 
 mod app;
 mod events;
+mod gfx;
 mod run;
-mod state;
 
 pub mod macros;
 pub mod observer;
@@ -11,5 +11,5 @@ pub mod third_party;
 
 pub use app::*;
 pub use events::*;
+pub use gfx::*;
 pub use run::*;
-pub use state::*;
