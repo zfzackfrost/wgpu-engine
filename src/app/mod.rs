@@ -11,16 +11,16 @@ use std::sync::Arc;
 use parking_lot::{Mutex, MutexGuard};
 use web_time::{Duration, Instant};
 
-use crate::state::State;
+use crate::gfx::state::GfxState;
 
 /// Main application struct that manages the application lifecycle,
 /// timing, state, and client interactions
 pub struct App {
     /// Event loop proxy for WASM to communicate with the event loop
     #[cfg(target_arch = "wasm32")]
-    proxy: Mutex<Option<winit::event_loop::EventLoopProxy<State>>>,
+    proxy: Mutex<Option<winit::event_loop::EventLoopProxy<GfxState>>>,
     /// Application state containing rendering context and window
-    state: Mutex<Option<State>>,
+    state: Mutex<Option<GfxState>>,
     /// Client implementation containing app-specific logic
     client: SharedAppClient,
     /// Timestamp of the last frame for delta time calculation
@@ -36,7 +36,7 @@ impl App {
     /// Creates a new App instance from a client
     pub(crate) fn from_client(
         client: SharedAppClient,
-        #[cfg(target_arch = "wasm32")] event_loop: &EventLoop<State>,
+        #[cfg(target_arch = "wasm32")] event_loop: &EventLoop<GfxState>,
     ) -> SharedApp {
         #[cfg(target_arch = "wasm32")]
         let proxy = Some(event_loop.create_proxy());
@@ -58,7 +58,7 @@ impl App {
         *self.elapsed.lock()
     }
     /// Returns a lock guard to the application state
-    pub fn state(&self) -> MutexGuard<'_, Option<State>> {
+    pub fn state(&self) -> MutexGuard<'_, Option<GfxState>> {
         self.state.lock()
     }
     /// Returns a reference to the application client

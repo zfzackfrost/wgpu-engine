@@ -1,6 +1,6 @@
 //! WGPU rendering state management
 //!
-//! This module contains the `State` struct which manages all WGPU resources
+//! This module contains the `GfxState` struct which manages all WGPU resources
 //! including the device, queue, surface, and rendering configuration.
 
 use std::sync::Arc;
@@ -11,9 +11,9 @@ use crate::app;
 
 /// Central rendering state that manages all WGPU resources
 ///
-/// The State struct encapsulates the WGPU adapter, device, queue, and surface.
+/// The GfxState struct encapsulates the WGPU adapter, device, queue, and surface.
 /// It handles initialization, resizing, and the main render loop.
-pub struct State {
+pub struct GfxState {
     /// WGPU adapter representing a physical graphics device
     pub adapter: wgpu::Adapter,
     /// WGPU logical device for creating resources
@@ -34,8 +34,8 @@ pub struct State {
     pub(crate) is_surface_configured: bool,
 }
 
-impl State {
-    /// Creates a new State instance, optionally with a window for presentation
+impl GfxState {
+    /// Creates a new GfxState instance, optionally with a window for presentation
     ///
     /// This function initializes all WGPU resources including the instance,
     /// adapter, device, and optionally a surface for the given window.
@@ -46,7 +46,7 @@ impl State {
     ///
     /// # Returns
     ///
-    /// Returns a configured State instance or an error if initialization fails.
+    /// Returns a configured GfxState instance or an error if initialization fails.
     pub async fn new(window: Option<Arc<Window>>) -> anyhow::Result<Self> {
         let mut size = (0u32, 0u32);
         // Create WGPU instance with platform-appropriate backends

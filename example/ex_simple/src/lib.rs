@@ -112,7 +112,7 @@ impl SimpleClient {
     fn handle_mouse_move(&self, data: &MouseMoveData) {
         let app = app();
         let mut state = app.state();
-        let state: &mut wgpu_engine::State = state.as_mut().unwrap();
+        let state: &mut wgpu_engine::GfxState = state.as_mut().unwrap();
         let config = state.config.as_ref().unwrap();
         let w = config.width;
         let h = config.height;

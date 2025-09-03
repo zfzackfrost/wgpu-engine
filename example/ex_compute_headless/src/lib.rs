@@ -4,7 +4,7 @@ use wgpu_engine::*;
 use image::{ImageBuffer, Rgba};
 
 pub fn run() -> anyhow::Result<()> {
-    let state = pollster::block_on(State::new(None))?;
+    let state = pollster::block_on(GfxState::new(None))?;
 
     let storage_size = (1024u32, 1024u32);
     let storage = make_storage_texture(&state, storage_size);
@@ -95,7 +95,7 @@ struct ComputeParams {
     checker_size: u32,
 }
 
-fn make_params_buffer(state: &State, params: ComputeParams) -> wgpu::Buffer {
+fn make_params_buffer(state: &GfxState, params: ComputeParams) -> wgpu::Buffer {
     use wgpu::util::{self, DeviceExt};
 
     let mut data = encase::UniformBuffer::new(Vec::<u8>::new());
@@ -110,7 +110,7 @@ fn make_params_buffer(state: &State, params: ComputeParams) -> wgpu::Buffer {
             usage: wgpu::BufferUsages::UNIFORM,
         })
 }
-fn make_staging_buffer(state: &State, storage_size: (u32, u32)) -> wgpu::Buffer {
+fn make_staging_buffer(state: &GfxState, storage_size: (u32, u32)) -> wgpu::Buffer {
     let (width, height) = storage_size;
     let buffer_size = (width * height * 4) as wgpu::BufferAddress;
     state.device.create_buffer(&wgpu::BufferDescriptor {
@@ -120,7 +120,7 @@ fn make_staging_buffer(state: &State, storage_size: (u32, u32)) -> wgpu::Buffer 
         mapped_at_creation: false,
     })
 }
-fn make_storage_texture(state: &State, storage_size: (u32, u32)) -> wgpu::Texture {
+fn make_storage_texture(state: &GfxState, storage_size: (u32, u32)) -> wgpu::Texture {
     let (width, height) = storage_size;
     let desc = wgpu::TextureDescriptor {
         label: Some("Shader Storage"),
@@ -139,7 +139,7 @@ fn make_storage_texture(state: &State, storage_size: (u32, u32)) -> wgpu::Textur
     state.device.create_texture(&desc)
 }
 fn make_compute_bind_groups(
-    state: &State,
+    state: &GfxState,
     storage: &wgpu::Texture,
     params: &wgpu::Buffer,
 ) -> (Vec<wgpu::BindGroupLayout>, Vec<wgpu::BindGroup>) {
@@ -192,7 +192,7 @@ fn make_compute_bind_groups(
     (group_layouts, groups)
 }
 fn make_compute_pipeline(
-    state: &State,
+    state: &GfxState,
     bind_group_layouts: &[&wgpu::BindGroupLayout],
 ) -> wgpu::ComputePipeline {
     let code = include_str!("./checker.wgsl");
