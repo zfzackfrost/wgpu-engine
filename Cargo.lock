@@ -3361,6 +3361,7 @@ name = "wgpu-engine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytemuck",
  "console_error_panic_hook",
  "console_log",
  "downcast-rs 2.0.1",

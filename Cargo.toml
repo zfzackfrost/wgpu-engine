@@ -8,6 +8,7 @@ members = ["tools/*", "example/*"]
 
 [dependencies]
 anyhow = "1.0"
+bytemuck = { version = "1.23.2", features = ["derive"] }
 downcast-rs = "2.0.1"
 educe = "0.6"
 encase = { version = "0.11.2", features = ["glam"] }
