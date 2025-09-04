@@ -11,7 +11,7 @@ use std::sync::Arc;
 use parking_lot::{Mutex, MutexGuard};
 use web_time::{Duration, Instant};
 
-use crate::gfx::state::GfxState;
+use crate::gfx::GfxState;
 
 /// Main application struct that manages the application lifecycle,
 /// timing, state, and client interactions
