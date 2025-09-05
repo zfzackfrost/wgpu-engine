@@ -5,7 +5,7 @@
 //! - Setting up a minimal render pipeline with vertex and fragment shaders
 //! - Handling mouse movement to change background color
 //! - Handling keyboard input for application exit
-//! - Rendering a single triangle without vertex buffers (using vertex ID)
+//! - Rendering a single triangle with vertex buffers
 
 use wgpu_engine::observer::FnSubscriber;
 pub use wgpu_engine::third_party::*;
@@ -14,7 +14,7 @@ pub use wgpu_engine::*;
 pub use parking_lot::Mutex;
 
 /// Simple application client that renders an interactive triangle.
-/// 
+///
 /// The client manages a single render pipeline and responds to user input:
 /// - Mouse movement changes the background color
 /// - Escape key exits the application
@@ -24,31 +24,36 @@ struct SimpleClient {
     /// Render pipeline for drawing the triangle (protected by mutex for thread safety)
     #[educe(Debug(ignore))]
     pipeline: Mutex<Option<wgpu::RenderPipeline>>,
+    #[educe(Debug(ignore))]
+    vertices: Mutex<Option<gfx::VertexBuffer<gfx::Vertex2D>>>,
 }
 impl SimpleClient {
     /// Creates a new SimpleClient instance wrapped in Arc for shared ownership.
-    /// 
+    ///
     /// The pipeline is initially None and will be initialized during the init() phase.
     #[allow(clippy::new_ret_no_self)]
     fn new() -> SharedAppClient {
         std::sync::Arc::new(Self {
             pipeline: Mutex::new(None),
+            vertices: Mutex::new(None),
         })
     }
 }
 
 impl AppClient for SimpleClient {
     /// Initializes the client by setting up event subscriptions and creating the render pipeline.
-    /// 
+    ///
     /// This method:
     /// 1. Subscribes to mouse movement and keyboard events
     /// 2. Creates a shader module from the embedded triangle.wgsl source
     /// 3. Sets up a basic render pipeline with no vertex buffers
     /// 4. Stores the pipeline for use during rendering
+    /// 5. Sets up the vertex buffer and stores it for use during rendering
     fn init(&self) {
+        use gfx::Vertex;
         // Get reference to this client for event handling
         let client = app_client_as::<Self>().unwrap();
-        
+
         // Subscribe to mouse movement events
         {
             let client = client.clone();
@@ -59,7 +64,7 @@ impl AppClient for SimpleClient {
                 .boxed(),
             );
         }
-        
+
         // Subscribe to keyboard events
         {
             let client = client.clone();
@@ -91,6 +96,8 @@ impl AppClient for SimpleClient {
                 bind_group_layouts: &[],
                 push_constant_ranges: &[],
             });
+
+        let vertex_info = gfx::Vertex2D::info();
         // Create render pipeline with vertex and fragment shaders
         let pipeline = state
             .device
@@ -101,20 +108,20 @@ impl AppClient for SimpleClient {
                     module: &module,
                     entry_point: Some("vs_main"),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    buffers: &[], // No vertex buffers - using vertex ID in shader
+                    buffers: &[vertex_info.describe()], // One vertex buffer (Vertex2D)
                 },
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,           // Counter-clockwise front faces
-                    cull_mode: Some(wgpu::Face::Back),          // Cull back-facing triangles
+                    front_face: wgpu::FrontFace::Ccw, // Counter-clockwise front faces
+                    cull_mode: Some(wgpu::Face::Back), // Cull back-facing triangles
                     unclipped_depth: false,
                     polygon_mode: wgpu::PolygonMode::Fill,
                     conservative: false,
                 },
                 depth_stencil: None, // No depth testing for this simple example
                 multisample: wgpu::MultisampleState {
-                    count: 1,                                   // No multisampling
+                    count: 1, // No multisampling
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
@@ -124,8 +131,8 @@ impl AppClient for SimpleClient {
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: state.config.clone().unwrap().format, // Match surface format
-                        blend: Some(wgpu::BlendState::REPLACE),         // Replace existing colors
-                        write_mask: wgpu::ColorWrites::ALL,             // Write all color channels
+                        blend: Some(wgpu::BlendState::REPLACE),       // Replace existing colors
+                        write_mask: wgpu::ColorWrites::ALL,           // Write all color channels
                     })],
                 }),
                 multiview: None,
@@ -133,27 +140,59 @@ impl AppClient for SimpleClient {
             });
         // Store the pipeline for use during rendering
         *self.pipeline.lock() = Some(pipeline);
+
+        // The vertices of the triangle to render
+        const VERTICES: &[gfx::Vertex2D] = &[
+            // Top-center
+            gfx::Vertex2D {
+                position: [0.0, 0.5],
+                tex_coords: [0.0; 2], // Not used in this example
+                color: [0.0, 0.0, 1.0, 1.0],
+            },
+            // Bottom-Left
+            gfx::Vertex2D {
+                position: [-0.5, -0.5],
+                tex_coords: [0.0; 2], // Not used in this example
+                color: [1.0, 1.0, 0.0, 1.0],
+            },
+            // Bottom-right
+            gfx::Vertex2D {
+                position: [0.5, -0.5],
+                tex_coords: [0.0; 2], // Not used in this example
+                color: [1.0, 0.0, 0.0, 1.0],
+            },
+        ];
+        // Create and store the vertex buffer
+        *self.vertices.lock() = Some(gfx::VertexBuffer::new_filled(
+            &state.device,
+            VERTICES,
+            wgpu::BufferUsages::empty(),
+            Some("Vertices"),
+        ));
     }
 
     /// Update function called each frame (currently unused).
     fn update(&self, _delta_time: f32) {}
 
     /// Render function that draws the triangle.
-    /// 
-    /// Uses the stored pipeline to draw 3 vertices (forming a triangle)
-    /// without any vertex buffers - the vertex positions are generated
-    /// in the vertex shader using the vertex index.
+    ///
+    /// Uses the stored pipeline to draw 3 vertices (forming a triangle) using a vertex
+    /// buffer
     fn render(&self, rpass: &mut wgpu::RenderPass<'_>) {
         let Some(pipeline) = &*self.pipeline.lock() else {
             return;
         };
+        let Some(vertices) = &*self.vertices.lock() else {
+            return;
+        };
         rpass.set_pipeline(pipeline);
+        rpass.set_vertex_buffer(0, vertices.slice(..));
         rpass.draw(0..3, 0..1); // Draw 3 vertices, 1 instance
     }
 }
 impl SimpleClient {
     /// Handles mouse movement events by updating the background clear color.
-    /// 
+    ///
     /// The mouse position is normalized to [0, 1] range and used as RGB components,
     /// creating a color that changes based on cursor position.
     fn handle_mouse_move(&self, data: &MouseMoveData) {
@@ -163,12 +202,12 @@ impl SimpleClient {
         let config = state.config.as_ref().unwrap();
         let w = config.width;
         let h = config.height;
-        
+
         // Normalize mouse position to [0, 1] and use as RGB color
         state.clear_color = (data.position / glam::vec2(w as f32, h as f32))
-            .extend(0.0)  // Blue component set to 0
+            .extend(0.0) // Blue component set to 0
             .extend(1.0); // Alpha component set to 1 (fully opaque)
-        
+
         let delta = data.delta;
         log::info!("Mouse Delta: ({}, {})", delta.x, delta.y);
     }
