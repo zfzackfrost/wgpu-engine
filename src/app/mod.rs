@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use parking_lot::{Mutex, MutexGuard};
 use web_time::{Duration, Instant};
+use winit::event_loop::EventLoop;
 
 use crate::gfx::GfxState;
 

@@ -63,7 +63,7 @@ impl ApplicationHandler<GfxState> for SharedApp {
                     assert!(
                         proxy
                             .send_event(
-                                GfxState::new(window)
+                                GfxState::new(Some(window))
                                     .await
                                     .expect("Unable to create canvas!!!")
                             )
@@ -80,11 +80,9 @@ impl ApplicationHandler<GfxState> for SharedApp {
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: GfxState) {
         #[cfg(target_arch = "wasm32")]
         {
-            event.window.request_redraw();
-            event.resize(
-                event.window.inner_size().width,
-                event.window.inner_size().height,
-            );
+            let window = event.window.as_ref().unwrap();
+            window.request_redraw();
+            event.resize(window.inner_size().width, window.inner_size().height);
         }
         let mut state = self.0.state.lock();
         *state = Some(event);
