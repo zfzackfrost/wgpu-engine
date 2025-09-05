@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 /// Trait for vertex types that can be used with the graphics pipeline.
-/// 
+///
 /// Types implementing this trait must be safely transmutable to bytes (`Pod`)
 /// and zero-initializable (`Zeroable`) for GPU buffer operations.
 pub trait Vertex: bytemuck::Pod + bytemuck::Zeroable {
@@ -19,7 +19,7 @@ pub trait VertexInfo {
 pub type VertexInfoObj = Box<dyn VertexInfo>;
 
 /// A 2D vertex with position, texture coordinates, and color.
-/// 
+///
 /// Memory layout is guaranteed to match C representation for GPU compatibility.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -31,6 +31,16 @@ pub struct Vertex2D {
     pub tex_coords: [f32; 2],
     /// RGBA color values, each component in range [0.0, 1.0]
     pub color: [f32; 4],
+}
+impl Default for Vertex2D {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            position: [0.0; 2],
+            tex_coords: [0.0; 2],
+            color: [1.0; 4],
+        }
+    }
 }
 impl Vertex for Vertex2D {
     fn info() -> VertexInfoObj {
@@ -56,7 +66,7 @@ impl Vertex for Vertex2D {
 }
 
 /// A 3D vertex with position, normal, texture coordinates, and color.
-/// 
+///
 /// Suitable for 3D rendering with lighting calculations using the normal vector.
 /// Memory layout is guaranteed to match C representation for GPU compatibility.
 #[repr(C)]
@@ -96,4 +106,14 @@ impl Vertex for Vertex3D {
         Box::new(Info)
     }
 }
-
+impl Default for Vertex3D {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            position: [0.0; 3],
+            normal: [0.0, 0.0, 1.0],
+            tex_coords: [0.0; 2],
+            color: [1.0; 4],
+        }
+    }
+}
