@@ -187,7 +187,7 @@ impl AppClient for SimpleClient {
         };
         rpass.set_pipeline(pipeline);
         rpass.set_vertex_buffer(0, vertices.slice(..));
-        rpass.draw(0..3, 0..1); // Draw 3 vertices, 1 instance
+        rpass.draw(0..vertices.count(), 0..1); // Draw `count` vertices, 1 instance
     }
 }
 impl SimpleClient {
