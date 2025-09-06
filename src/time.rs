@@ -56,7 +56,7 @@ impl Time {
     }
 
     #[inline]
-    pub fn elapsed(&self) -> f32 {
+    pub fn running_time(&self) -> f32 {
         let Some(start) = *self.app_start.lock() else {
             return 0.0;
         };

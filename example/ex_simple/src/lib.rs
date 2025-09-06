@@ -176,7 +176,7 @@ impl AppClient for SimpleClient {
         log::info!(
             "Delta time: {}s, Running time: {}s",
             TIME.frame_delta(),
-            TIME.elapsed()
+            TIME.running_time()
         );
     }
 
