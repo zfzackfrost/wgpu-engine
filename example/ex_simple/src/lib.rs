@@ -214,7 +214,7 @@ impl SimpleClient {
             .extend(0.0) // Blue component set to 0
             .extend(1.0); // Alpha component set to 1 (fully opaque)
 
-        let delta = data.delta;
+        // let delta = data.delta;
         // log::info!("Mouse Delta: ({}, {})", delta.x, delta.y);
     }
 
