@@ -26,6 +26,8 @@ struct SimpleClient {
     pipeline: Mutex<Option<wgpu::RenderPipeline>>,
     #[educe(Debug(ignore))]
     vertices: Mutex<Option<gfx::VertexBuffer<gfx::Vertex2D>>>,
+    #[educe(Debug(ignore))]
+    indices: Mutex<Option<gfx::IndexBuffer<u16>>>,
 }
 impl SimpleClient {
     /// Creates a new SimpleClient instance wrapped in Arc for shared ownership.
@@ -36,6 +38,7 @@ impl SimpleClient {
         std::sync::Arc::new(Self {
             pipeline: Mutex::new(None),
             vertices: Mutex::new(None),
+            indices: Mutex::new(None),
         })
     }
 }
@@ -141,13 +144,31 @@ impl AppClient for SimpleClient {
         // Store the pipeline for use during rendering
         *self.pipeline.lock() = Some(pipeline);
 
-        // The vertices of the triangle to render
+        // The indices of the quad to render
+        const INDICES: &[u16] = &[
+            0, 1, 2, // Triangle 0
+            2, 3, 0, // Triangle 1
+        ];
+        *self.indices.lock() = Some(gfx::IndexBuffer::new_filled(
+            &state.device,
+            INDICES,
+            wgpu::BufferUsages::empty(),
+            Some("Indices"),
+        ));
+
+        // The vertices of the quad to render
         const VERTICES: &[gfx::Vertex2D] = &[
-            // Top-center
+            // Top-right
             gfx::Vertex2D {
-                position: [0.0, 0.5],
+                position: [0.5, 0.5],
                 tex_coords: [0.0; 2], // Not used in this example
                 color: [0.0, 0.0, 1.0, 1.0],
+            },
+            // Top-left
+            gfx::Vertex2D {
+                position: [-0.5, 0.5],
+                tex_coords: [0.0; 2], // Not used in this example
+                color: [1.0, 1.0, 1.0, 1.0],
             },
             // Bottom-Left
             gfx::Vertex2D {
@@ -191,9 +212,13 @@ impl AppClient for SimpleClient {
         let Some(vertices) = &*self.vertices.lock() else {
             return;
         };
+        let Some(indices) = &*self.indices.lock() else {
+            return;
+        };
         rpass.set_pipeline(pipeline);
         rpass.set_vertex_buffer(0, vertices.slice(..));
-        rpass.draw(0..vertices.count(), 0..1); // Draw `count` vertices, 1 instance
+        rpass.set_index_buffer(indices.slice(..), indices.index_format());
+        rpass.draw_indexed(0..indices.count(), 0, 0..1); // Draw `count` indices, 1 instance
     }
 }
 impl SimpleClient {

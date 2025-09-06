@@ -12,6 +12,9 @@ use parking_lot::{Mutex, MutexGuard};
 
 use crate::gfx::GfxState;
 
+#[cfg(target_arch = "wasm32")]
+use winit::event_loop::EventLoop;
+
 /// Main application struct that manages the application lifecycle,
 /// timing, state, and client interactions
 pub struct App {
