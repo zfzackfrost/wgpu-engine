@@ -6,8 +6,6 @@
 
 use std::sync::Arc;
 
-use web_time::Instant;
-
 use winit::application::ApplicationHandler;
 use winit::event::*;
 use winit::event_loop::ActiveEventLoop;
