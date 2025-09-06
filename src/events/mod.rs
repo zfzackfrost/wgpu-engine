@@ -12,8 +12,11 @@ pub use winit::keyboard::KeyCode;
 
 use crate::observer::{FnSubscriber, Publisher, Subscriber};
 
+mod data;
+pub use data::*;
+
 /// Global event system instance
-/// 
+///
 /// This provides access to all event publishers for the application.
 /// Publishers allow subscribing to various input and lifecycle events.
 pub static EVENTS: LazyLock<Events> = LazyLock::new(|| {
@@ -37,7 +40,7 @@ type MutEventPublisher<Data> = Mutex<EventPublisher<Data>>;
 type GuardEventPublisher<'a, Data> = MutexGuard<'a, EventPublisher<Data>>;
 
 /// Central event system containing all event publishers
-/// 
+///
 /// This struct provides access to publishers for various application events
 /// including input events and frame lifecycle events.
 pub struct Events {
@@ -61,7 +64,7 @@ pub struct Events {
 }
 impl Events {
     /// Initializes the event system with necessary subscriptions
-    /// 
+    ///
     /// This sets up internal subscribers like mouse position tracking.
     fn init(&self) {
         // Subscribe to mouse move events to track the last position
@@ -75,7 +78,7 @@ impl Events {
         );
     }
     /// Returns the last known mouse position
-    /// 
+    ///
     /// Returns Vec2::ZERO if no mouse movement has been recorded yet.
     pub(crate) fn last_mouse_position(&self) -> glam::Vec2 {
         self.last_mouse_position.lock().unwrap_or(glam::Vec2::ZERO)
@@ -85,70 +88,34 @@ impl Events {
     pub fn start_of_frame(&self) -> GuardEventPublisher<'_, ()> {
         self.start_of_frame.lock()
     }
-    
+
     /// Returns the update event publisher
     pub fn update(&self) -> GuardEventPublisher<'_, ()> {
         self.update.lock()
     }
-    
+
     /// Returns the mouse move event publisher
     pub fn mouse_move(&self) -> GuardEventPublisher<'_, MouseMoveData> {
         self.mouse_move.lock()
     }
-    
+
     /// Returns the mouse wheel event publisher
     pub fn mouse_wheel(&self) -> GuardEventPublisher<'_, MouseWheelData> {
         self.mouse_wheel.lock()
     }
-    
+
     /// Returns the mouse button event publisher
     pub fn mouse_button(&self) -> GuardEventPublisher<'_, MouseButtonData> {
         self.mouse_button.lock()
     }
-    
+
     /// Returns the keyboard event publisher
     pub fn keyboard(&self) -> GuardEventPublisher<'_, KeyboardData> {
         self.keyboard.lock()
     }
-    
+
     /// Returns the end of frame event publisher
     pub fn end_of_frame(&self) -> GuardEventPublisher<'_, ()> {
         self.end_of_frame.lock()
     }
-}
-
-/// Data for mouse movement events
-#[derive(Debug, Clone)]
-pub struct MouseMoveData {
-    /// Current mouse position in window coordinates
-    pub position: glam::Vec2,
-    /// Delta movement since last mouse event
-    pub delta: glam::Vec2,
-}
-
-/// Data for mouse wheel scroll events
-#[derive(Debug, Clone)]
-pub struct MouseWheelData {
-    /// Scroll delta (positive = scroll up/right)
-    pub delta: glam::Vec2,
-}
-
-/// Data for mouse button press/release events
-#[derive(Debug, Clone)]
-pub struct MouseButtonData {
-    /// Which mouse button was affected
-    pub button: MouseButton,
-    /// True if pressed, false if released
-    pub is_pressed: bool,
-}
-
-/// Data for keyboard press/release events
-#[derive(Debug, Clone)]
-pub struct KeyboardData {
-    /// The key that was pressed/released
-    pub key_code: KeyCode,
-    /// True if pressed, false if released
-    pub is_pressed: bool,
-    /// True if this is a repeat event from holding the key
-    pub is_repeat: bool,
 }
