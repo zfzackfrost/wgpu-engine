@@ -16,7 +16,7 @@ use winit::window::Window;
 
 use crate::events::{EVENTS, KeyboardData};
 use crate::gfx::GfxState;
-use crate::{MouseButtonData, MouseMoveData, MouseWheelData};
+use crate::{MouseButtonData, MouseMoveData, MouseWheelData, TIME};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -106,16 +106,6 @@ impl ApplicationHandler<GfxState> for SharedApp {
                 state.resize(size.width, size.height);
             }
             WindowEvent::RedrawRequested => {
-                // Calculate delta time for this frame
-                let delta_time = {
-                    let mut last_time = self.last_frame_time.lock();
-                    let now = Instant::now();
-                    let elapsed = now - (*last_time);
-                    *last_time = now;
-                    elapsed
-                };
-                *self.elapsed.lock() += delta_time;
-
                 // Initialize the client on first frame
                 {
                     let mut is_initialized = self.is_initialized.lock();
@@ -126,7 +116,7 @@ impl ApplicationHandler<GfxState> for SharedApp {
                 }
                 // Notify update start and run client update
                 EVENTS.update().notify(&());
-                self.client.update(delta_time.as_secs_f32());
+                self.client.update(TIME.frame_delta());
 
                 let mut state = self.state.lock();
                 let state = match &mut *state {

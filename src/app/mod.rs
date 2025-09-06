@@ -24,10 +24,6 @@ pub struct App {
     state: Mutex<Option<GfxState>>,
     /// Client implementation containing app-specific logic
     client: SharedAppClient,
-    /// Timestamp of the last frame for delta time calculation
-    last_frame_time: Mutex<Instant>,
-    /// Total elapsed time since app started
-    elapsed: Mutex<Duration>,
     /// Flag indicating if the app has been initialized
     is_initialized: Mutex<bool>,
     /// Flag to signal app should exit
@@ -41,22 +37,14 @@ impl App {
     ) -> SharedApp {
         #[cfg(target_arch = "wasm32")]
         let proxy = Some(event_loop.create_proxy());
-        let now = Instant::now();
         SharedApp(Arc::new(Self {
             state: Mutex::new(None),
             client,
-            last_frame_time: Mutex::new(now),
-            elapsed: Mutex::new(Duration::new(0, 0)),
             is_initialized: Mutex::new(false),
             exit: Mutex::new(false),
             #[cfg(target_arch = "wasm32")]
             proxy: Mutex::new(proxy),
         }))
-    }
-
-    /// Returns the total time the application has been running
-    pub fn running_time(&self) -> Duration {
-        *self.elapsed.lock()
     }
     /// Returns a lock guard to the application state
     pub fn state(&self) -> MutexGuard<'_, Option<GfxState>> {

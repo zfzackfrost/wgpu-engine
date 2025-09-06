@@ -172,7 +172,13 @@ impl AppClient for SimpleClient {
     }
 
     /// Update function called each frame (currently unused).
-    fn update(&self, _delta_time: f32) {}
+    fn update(&self, _delta_time: f32) {
+        log::info!(
+            "Delta time: {}s, Running time: {}s",
+            TIME.frame_delta(),
+            TIME.elapsed()
+        );
+    }
 
     /// Render function that draws the triangle.
     ///
@@ -209,7 +215,7 @@ impl SimpleClient {
             .extend(1.0); // Alpha component set to 1 (fully opaque)
 
         let delta = data.delta;
-        log::info!("Mouse Delta: ({}, {})", delta.x, delta.y);
+        // log::info!("Mouse Delta: ({}, {})", delta.x, delta.y);
     }
 
     /// Handles keyboard events, specifically the Escape key for application exit.
