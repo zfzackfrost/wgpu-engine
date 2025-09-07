@@ -22,6 +22,7 @@ struct FragmentOut {
 @fragment
 fn fs_main(in: VertexOut) -> FragmentOut {
     var out: FragmentOut;
-    out.color = in.color;
+    let rgb = pow(in.color.rgb, vec3f(2.2));
+    out.color = vec4f(rgb, in.color.a);
     return out;
 }
