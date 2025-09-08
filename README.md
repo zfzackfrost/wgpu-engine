@@ -25,5 +25,5 @@ impl AppClient for MyApp {
     }
 }
 
-define_entry_point!(|| std::sync::Arc::new(MyApp) as SharedAppClient);
+define_entry_point!(std::sync::Arc::new(MyApp) as SharedAppClient);
 ```

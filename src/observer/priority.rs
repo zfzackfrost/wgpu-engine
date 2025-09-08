@@ -32,7 +32,7 @@ enum InnerPriority {
 /// # Examples
 ///
 /// ```rust
-/// use crate::observer::Priority;
+/// use wgpu_engine::observer::Priority;
 ///
 /// let early = Priority::early(0);     // Runs first
 /// let normal = Priority::new(0);      // Runs second
