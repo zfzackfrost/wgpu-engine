@@ -7,7 +7,7 @@
 //! - Handling keyboard input for application exit
 //! - Rendering a single triangle with vertex buffers
 
-use wgpu_engine::observer::FnSubscriber;
+use wgpu_engine::observer::{FnSubscriber, Subscription};
 pub use wgpu_engine::third_party::*;
 pub use wgpu_engine::*;
 
@@ -63,6 +63,7 @@ impl AppClient for SimpleClient {
             EVENTS.mouse_move().subscribe(
                 FnSubscriber::new(move |data| {
                     client.handle_mouse_move(data);
+                    Subscription::Keep
                 })
                 .boxed(),
             );
@@ -74,6 +75,7 @@ impl AppClient for SimpleClient {
             EVENTS.keyboard().subscribe(
                 FnSubscriber::new(move |data| {
                     client.handle_keyboard(data);
+                    Subscription::Keep
                 })
                 .boxed(),
             );

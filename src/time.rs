@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use web_time::{Duration, Instant};
 
 use crate::events::EVENTS;
-use crate::observer::{FnSubscriber, Priority};
+use crate::observer::{FnSubscriber, Priority, Subscription};
 
 pub static TIME: LazyLock<Time> = LazyLock::new(|| {
     let time = Time {
@@ -39,6 +39,7 @@ impl Time {
                 let now = Instant::now();
                 *current_frame.lock() = Some(now);
                 *frame_delta.lock() = now - last_frame.lock().unwrap();
+                Subscription::Keep
             })
             .with_priority(Priority::early(i32::MIN)) // Run first
             .boxed(),
@@ -49,6 +50,7 @@ impl Time {
         EVENTS.end_of_frame().subscribe(
             FnSubscriber::new(move |_| {
                 *last_frame.lock() = Some(current_frame.lock().unwrap());
+                Subscription::Keep
             })
             .with_priority(Priority::late(i32::MAX)) // Run last
             .boxed(),

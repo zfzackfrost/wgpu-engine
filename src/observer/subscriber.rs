@@ -4,6 +4,14 @@ use parking_lot::Mutex;
 
 use super::Priority;
 
+#[derive(Debug, Copy, Clone, Default)]
+#[derive(PartialEq, Eq)]
+pub enum Subscription {
+    #[default]
+    Keep,
+    Unsubscribe,
+}
+
 /// Trait for types that can subscribe to and handle events from a publisher
 ///
 /// Subscribers define their priority and how they handle incoming events.
@@ -20,7 +28,7 @@ pub trait Subscriber: Send + SubscriberTypes {
     ///
     /// # Arguments
     /// * `data` - The event data to handle
-    fn handle_event(&self, data: &Self::Data);
+    fn handle_event(&self, data: &Self::Data) -> Subscription;
 }
 pub trait SubscriberTypes {
     type Data;
@@ -34,8 +42,8 @@ impl<T> Subscriber for Box<dyn Subscriber<Data = T>> {
     fn priority(&self) -> Priority {
         self.as_ref().priority()
     }
-    fn handle_event(&self, data: &T) {
-        self.as_ref().handle_event(data);
+    fn handle_event(&self, data: &T) -> Subscription {
+        self.as_ref().handle_event(data)
     }
 }
 
@@ -47,7 +55,7 @@ impl<T> Subscriber for Box<dyn Subscriber<Data = T>> {
 /// # Type Parameters
 /// * `T` - The event data type
 /// * `F` - The function type that handles events
-pub struct FnSubscriber<T: Send, F: Fn(&T) + Send> {
+pub struct FnSubscriber<T: Send, F: Fn(&T) -> Subscription + Send> {
     /// The function to call when handling events (wrapped in Mutex for thread safety)
     f: Mutex<F>,
     /// The priority of this subscriber
@@ -55,7 +63,7 @@ pub struct FnSubscriber<T: Send, F: Fn(&T) + Send> {
     /// Phantom data for type safety
     _data: std::marker::PhantomData<T>,
 }
-impl<T: Send + 'static, F: Fn(&T) + Send + 'static> FnSubscriber<T, F> {
+impl<T: Send + 'static, F: Fn(&T) -> Subscription + Send + 'static> FnSubscriber<T, F> {
     /// Creates a new function subscriber with default priority (0)
     ///
     /// # Arguments
@@ -82,15 +90,15 @@ impl<T: Send + 'static, F: Fn(&T) + Send + 'static> FnSubscriber<T, F> {
         Box::new(self)
     }
 }
-impl<T: Send, F: Fn(&T) + Send> SubscriberTypes for FnSubscriber<T, F> {
+impl<T: Send, F: Fn(&T) -> Subscription + Send> SubscriberTypes for FnSubscriber<T, F> {
     type Data = T;
 }
 /// Subscriber trait implementation for FnSubscriber
-impl<T: Send, F: Fn(&T) + Send> Subscriber for FnSubscriber<T, F> {
+impl<T: Send, F: Fn(&T) -> Subscription + Send> Subscriber for FnSubscriber<T, F> {
     fn priority(&self) -> Priority {
         self.priority
     }
-    fn handle_event(&self, data: &Self::Data) {
+    fn handle_event(&self, data: &Self::Data) -> Subscription {
         // Call the wrapped function with the event data
         self.f.lock()(data)
     }
@@ -112,8 +120,9 @@ mod test {
             fn priority(&self) -> Priority {
                 Priority::new(21)
             }
-            fn handle_event(&self, data: &Self::Data) {
+            fn handle_event(&self, data: &Self::Data) -> Subscription {
                 assert_eq!(*data, self.0);
+                Subscription::Keep
             }
         }
         let subscriber: Box<dyn Subscriber<Data = f32>> = Box::new(TestSubscriber(42.0));

@@ -3,6 +3,8 @@
 use std::collections::HashSet;
 use std::collections::btree_map::{BTreeMap, Entry as BTreeMapEntry};
 
+use crate::observer::Subscription;
+
 use super::{Priority, Subscriber};
 
 use parking_lot::Mutex;
@@ -113,7 +115,6 @@ impl<S: Subscriber> Publisher<S> {
     ///
     /// # Arguments
     /// * `data` - The event data to send to all subscribers
-    #[inline]
     pub fn notify(&self, data: &S::Data) {
         // Iterate through priorities in ascending order (lower values first)
         for (_, listeners) in self.registered.iter() {
@@ -121,16 +122,24 @@ impl<S: Subscriber> Publisher<S> {
             listeners
                 .iter()
                 .filter(|(_, id)| !self.dead_subscribers.lock().contains(id)) // Exclude "dead" listeners
-                .for_each(|(l, _)| {
-                    l.handle_event(data);
+                .for_each(|(l, id)| {
+                    if l.handle_event(data) == Subscription::Unsubscribe {
+                        self.mark_for_unsubscribe(*id);
+                    }
                 });
         }
+    }
+
+    #[inline]
+    pub fn notify_mut(&mut self, data: &S::Data) {
+        self.notify(data);
+        self.maintain();
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::observer::SubscriberTypes;
+    use crate::observer::{SubscriberTypes, Subscription};
 
     use super::*;
     use std::cell::RefCell;
@@ -154,8 +163,9 @@ mod test {
             self.priority
         }
         // When notified, push our test value to the shared vector
-        fn handle_event(&self, data: &ValueSeq) {
+        fn handle_event(&self, data: &ValueSeq) -> Subscription {
             data.borrow_mut().push(self.value);
+            Subscription::Keep
         }
     }
 

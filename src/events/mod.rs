@@ -10,7 +10,7 @@ use parking_lot::{Mutex, MutexGuard};
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
-use crate::observer::{FnSubscriber, Priority, Publisher, Subscriber};
+use crate::observer::{FnSubscriber, Priority, Publisher, Subscriber, Subscription};
 
 mod data;
 pub use data::*;
@@ -73,6 +73,7 @@ impl Events {
         self.mouse_move().subscribe(
             FnSubscriber::new(|data: &MouseMoveData| {
                 *EVENTS.last_mouse_position.lock() = Some(data.position);
+                Subscription::Keep
             })
             .with_priority(Priority::late(i32::MAX / 2))
             .boxed(),
