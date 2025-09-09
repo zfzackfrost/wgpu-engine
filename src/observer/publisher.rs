@@ -1,8 +1,11 @@
 //! Publisher implementation for the observer pattern
 
+use std::collections::HashSet;
 use std::collections::btree_map::{BTreeMap, Entry as BTreeMapEntry};
 
 use super::{Priority, Subscriber};
+
+use parking_lot::Mutex;
 
 /// A publisher that can notify multiple subscribers of events
 ///
@@ -15,6 +18,7 @@ use super::{Priority, Subscriber};
 pub struct Publisher<S: Subscriber> {
     /// Subscribers organized by priority (lower values = higher priority)
     registered: BTreeMap<Priority, Vec<(S, u64)>>,
+    dead_subscribers: Mutex<HashSet<u64>>,
     /// Counter for generating unique subscriber IDs
     next_id: u64,
 }
@@ -24,6 +28,7 @@ impl<S: Subscriber> Publisher<S> {
     pub(crate) fn new() -> Self {
         Self {
             registered: BTreeMap::new(),
+            dead_subscribers: Mutex::new(HashSet::new()),
             next_id: 1, // Start IDs at 1 (0 could be used as a sentinel value)
         }
     }
@@ -87,6 +92,20 @@ impl<S: Subscriber> Publisher<S> {
             listeners.retain(|(_, id)| *id != listener_id);
         }
     }
+
+    pub fn mark_for_unsubscribe(&self, id: u64) {
+        self.dead_subscribers.lock().insert(id);
+    }
+
+    pub fn maintain(&mut self) {
+        // Remove dead subscribers
+        let mut dead_subscribers = self.dead_subscribers.lock();
+        self.registered.values_mut().for_each(|listeners| {
+            listeners.retain(|(_, id)| !dead_subscribers.contains(id));
+        });
+        dead_subscribers.clear();
+    }
+
     /// Notifies all subscribers of an event
     ///
     /// Subscribers are called in priority order (lowest priority value first).
@@ -99,9 +118,12 @@ impl<S: Subscriber> Publisher<S> {
         // Iterate through priorities in ascending order (lower values first)
         for (_, listeners) in self.registered.iter() {
             // Call all listeners at this priority level
-            for (l, _) in listeners.iter() {
-                l.handle_event(data);
-            }
+            listeners
+                .iter()
+                .filter(|(_, id)| !self.dead_subscribers.lock().contains(id)) // Exclude "dead" listeners
+                .for_each(|(l, _)| {
+                    l.handle_event(data);
+                });
         }
     }
 }
