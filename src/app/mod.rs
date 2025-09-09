@@ -25,6 +25,7 @@ pub struct App {
     state: Mutex<Option<GfxState>>,
     /// Client implementation containing app-specific logic
     client: SharedAppClient,
+    client_info: AppClientInfo,
     /// Flag indicating if the app has been initialized
     is_initialized: Mutex<bool>,
     /// Flag to signal app should exit
@@ -38,9 +39,12 @@ impl App {
     ) -> SharedApp {
         #[cfg(target_arch = "wasm32")]
         let proxy = Some(event_loop.create_proxy());
+
+        let client_info = client.init_client_info();
         SharedApp(Arc::new(Self {
             state: Mutex::new(None),
             client,
+            client_info,
             is_initialized: Mutex::new(false),
             exit: Mutex::new(false),
             #[cfg(target_arch = "wasm32")]
@@ -54,6 +58,9 @@ impl App {
     /// Returns a reference to the application client
     pub fn client(&self) -> Arc<dyn AppClient> {
         Arc::clone(&self.client)
+    }
+    pub fn client_info(&self) -> &AppClientInfo {
+        &self.client_info
     }
     /// Signals the application to exit
     pub fn exit(&self) {

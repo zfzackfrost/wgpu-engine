@@ -27,19 +27,25 @@ impl ApplicationHandler<GfxState> for SharedApp {
     /// Called when the application is resumed or started
     /// Creates the window and initializes the rendering state
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        use winit::dpi::PhysicalSize;
+
+        let size = self.client_info.window_size;
         #[allow(unused_mut)]
         let mut window_attributes = Window::default_attributes();
+        window_attributes = window_attributes.with_title(&self.client_info.window_title);
+        window_attributes = window_attributes.with_inner_size(PhysicalSize::new(size.x, size.y));
 
         #[cfg(target_arch = "wasm32")]
         {
             use wasm_bindgen::JsCast;
             use winit::platform::web::WindowAttributesExtWebSys;
 
-            const DEFAULT_CANVAS_ID: &str = "wgpu-canvas";
-
             let window = wgpu::web_sys::window().unwrap_throw();
             let document = window.document().unwrap_throw();
-            let canvas = document.get_element_by_id(DEFAULT_CANVAS_ID).unwrap_throw();
+            let canvas = document
+                .query_selector(&self.client_info.wasm_canvas_selector)
+                .unwrap_throw()
+                .unwrap_throw();
             let html_canvas_element = canvas.unchecked_into();
             window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
         }
