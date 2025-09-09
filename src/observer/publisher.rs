@@ -15,7 +15,9 @@ use super::{Priority, Subscriber};
 /// * `S` - The subscriber type that will handle events
 pub struct Publisher<D, S: Subscriber<D>> {
     /// Subscribers organized by priority (lower values = higher priority)
-    registered: BTreeMap<Priority, Vec<S>>,
+    registered: BTreeMap<Priority, Vec<(S, u64)>>,
+    /// Counter for generating unique subscriber IDs
+    next_id: u64,
     /// Phantom data to maintain type safety for the data parameter
     _data: std::marker::PhantomData<D>,
 }
@@ -25,6 +27,7 @@ impl<D, S: Subscriber<D>> Publisher<D, S> {
     pub(crate) fn new() -> Self {
         Self {
             registered: BTreeMap::new(),
+            next_id: 1, // Start IDs at 1 (0 could be used as a sentinel value)
             _data: Default::default(),
         }
     }
@@ -34,17 +37,58 @@ impl<D, S: Subscriber<D>> Publisher<D, S> {
     /// its `priority()` method. Listeners with the same priority are called
     /// in the order they were subscribed.
     ///
+    /// Returns the registration ID of the listener, which is used to unsubscribe it.
+    ///
     /// # Arguments
     /// * `listener` - The subscriber to add
     #[inline]
-    pub fn subscribe(&mut self, listener: S) {
+    pub fn subscribe(&mut self, listener: S) -> u64 {
+        // Generate unique ID for this subscriber
+        let id = self.next_id;
+        self.next_id += 1;
+        
+        // Add subscriber to the appropriate priority group
         match self.registered.entry(listener.priority()) {
             BTreeMapEntry::Vacant(vacant_entry) => {
-                vacant_entry.insert(vec![listener]);
+                // First subscriber at this priority level
+                vacant_entry.insert(vec![(listener, id)]);
             }
             BTreeMapEntry::Occupied(mut occupied_entry) => {
-                occupied_entry.get_mut().push(listener);
+                // Add to existing priority group
+                occupied_entry.get_mut().push((listener, id));
             }
+        }
+        id
+    }
+    /// Returns the total number of subscribers across all priority levels
+    #[inline]
+    pub fn len(&self) -> usize {
+        // Sum the length of all subscriber vectors across all priority levels
+        self.registered
+            .values()
+            .map(|listeners| listeners.len())
+            .sum()
+    }
+    /// Returns `true` if there are no subscribers registered
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        // Check if all priority groups have empty subscriber lists
+        self.registered
+            .values()
+            .all(|listeners| listeners.is_empty())
+    }
+    /// Removes a subscriber by its registration ID
+    ///
+    /// The subscriber will no longer receive notifications from this publisher.
+    /// If the ID is not found, this method does nothing.
+    ///
+    /// # Arguments
+    /// * `listener_id` - The registration ID returned by `subscribe()`
+    #[inline]
+    pub fn unsubscribe(&mut self, listener_id: u64) {
+        // Search through all priority groups and remove the subscriber with matching ID
+        for (_, listeners) in self.registered.iter_mut() {
+            listeners.retain(|(_, id)| *id != listener_id);
         }
     }
     /// Notifies all subscribers of an event
@@ -59,9 +103,119 @@ impl<D, S: Subscriber<D>> Publisher<D, S> {
         // Iterate through priorities in ascending order (lower values first)
         for (_, listeners) in self.registered.iter() {
             // Call all listeners at this priority level
-            for l in listeners.iter() {
+            for (l, _) in listeners.iter() {
                 l.handle_event(data);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    // Test data types
+    type Value = i32;
+    type ValueSeq = Rc<RefCell<Vec<Value>>>;
+    
+    /// Test subscriber implementation that pushes its value to a shared vector
+    struct TestSubscriber {
+        value: Value,
+        priority: Priority,
+    }
+
+    impl Subscriber<ValueSeq> for TestSubscriber {
+        fn priority(&self) -> Priority {
+            self.priority
+        }
+        // When notified, push our test value to the shared vector
+        fn handle_event(&self, data: &ValueSeq) {
+            data.borrow_mut().push(self.value);
+        }
+    }
+
+    #[test]
+    fn subscribe_notify() {
+        // Shared vector to collect notification results
+        let test_value: ValueSeq = Rc::new(RefCell::new(Vec::new()));
+        let mut publisher: Publisher<ValueSeq, TestSubscriber> = Publisher::new();
+
+        let subscriber_1 = TestSubscriber {
+            value: 1,
+            priority: Priority::early(0),
+        };
+        let value_1 = subscriber_1.value;
+        publisher.subscribe(subscriber_1);
+        test_value.borrow_mut().clear();
+        publisher.notify(&test_value);
+        {
+            let test_values = test_value.borrow();
+            assert_eq!(test_values.len(), 1);
+            assert_eq!(test_values[0], value_1);
+        }
+
+        let subscriber_2 = TestSubscriber {
+            value: 21,
+            priority: Priority::new(0),
+        };
+        let value_2 = subscriber_2.value;
+        publisher.subscribe(subscriber_2);
+        test_value.borrow_mut().clear();
+        publisher.notify(&test_value);
+        {
+            let test_values = test_value.borrow();
+            assert_eq!(test_values.len(), 2);
+            assert_eq!(test_values[0], value_1);
+            assert_eq!(test_values[1], value_2);
+        }
+
+        let subscriber_3 = TestSubscriber {
+            value: 42,
+            priority: Priority::late(0),
+        };
+        let value_3 = subscriber_3.value;
+        publisher.subscribe(subscriber_3);
+        test_value.borrow_mut().clear();
+        publisher.notify(&test_value);
+        {
+            let test_values = test_value.borrow();
+            assert_eq!(test_values.len(), 3);
+            assert_eq!(test_values[0], value_1);
+            assert_eq!(test_values[1], value_2);
+            assert_eq!(test_values[2], value_3);
+        }
+    }
+    #[test]
+    fn subscribe_len_empty_unsubscribe() {
+        // Test publisher state management methods
+        let mut publisher: Publisher<ValueSeq, TestSubscriber> = Publisher::new();
+
+        assert!(publisher.is_empty());
+        assert_eq!(publisher.len(), 0);
+
+        let subscriber_1 = TestSubscriber {
+            value: 21,
+            priority: Priority::new(0),
+        };
+        let id_1 = publisher.subscribe(subscriber_1);
+
+        let subscriber_2 = TestSubscriber {
+            value: 42,
+            priority: Priority::new(0),
+        };
+        let id_2 = publisher.subscribe(subscriber_2);
+
+        assert!(!publisher.is_empty());
+        assert_eq!(publisher.len(), 2);
+
+        publisher.unsubscribe(id_1);
+        assert!(!publisher.is_empty());
+        assert_eq!(publisher.len(), 1);
+
+        publisher.unsubscribe(id_2);
+        assert!(publisher.is_empty());
+        assert_eq!(publisher.len(), 0);
     }
 }
