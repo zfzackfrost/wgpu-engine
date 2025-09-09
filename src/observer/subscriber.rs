@@ -8,7 +8,7 @@ use super::Priority;
 ///
 /// Subscribers define their priority and how they handle incoming events.
 /// Lower priority values indicate higher priority (called first).
-pub trait Subscriber<T>: Send {
+pub trait Subscriber: Send + SubscriberTypes {
     /// Returns the priority of this subscriber
     ///
     /// Lower values indicate higher priority (called first).
@@ -20,10 +20,17 @@ pub trait Subscriber<T>: Send {
     ///
     /// # Arguments
     /// * `data` - The event data to handle
-    fn handle_event(&self, data: &T);
+    fn handle_event(&self, data: &Self::Data);
+}
+pub trait SubscriberTypes {
+    type Data;
+}
+
+impl<T> SubscriberTypes for Box<dyn Subscriber<Data = T>> {
+    type Data = T;
 }
 /// Implementation for boxed subscribers to enable trait object usage
-impl<T> Subscriber<T> for Box<dyn Subscriber<T>> {
+impl<T> Subscriber for Box<dyn Subscriber<Data = T>> {
     fn priority(&self) -> Priority {
         self.as_ref().priority()
     }
@@ -31,6 +38,7 @@ impl<T> Subscriber<T> for Box<dyn Subscriber<T>> {
         self.as_ref().handle_event(data);
     }
 }
+
 /// A subscriber implementation that wraps a function or closure
 ///
 /// This allows using functions and closures as subscribers without
@@ -70,16 +78,19 @@ impl<T: Send + 'static, F: Fn(&T) + Send + 'static> FnSubscriber<T, F> {
     ///
     /// This is useful when you need to store different types of subscribers
     /// in the same collection.
-    pub fn boxed(self) -> Box<dyn Subscriber<T>> {
+    pub fn boxed(self) -> Box<dyn Subscriber<Data = T>> {
         Box::new(self)
     }
 }
+impl<T: Send, F: Fn(&T) + Send> SubscriberTypes for FnSubscriber<T, F> {
+    type Data = T;
+}
 /// Subscriber trait implementation for FnSubscriber
-impl<T: Send, F: Fn(&T) + Send> Subscriber<T> for FnSubscriber<T, F> {
+impl<T: Send, F: Fn(&T) + Send> Subscriber for FnSubscriber<T, F> {
     fn priority(&self) -> Priority {
         self.priority
     }
-    fn handle_event(&self, data: &T) {
+    fn handle_event(&self, data: &Self::Data) {
         // Call the wrapped function with the event data
         self.f.lock()(data)
     }
@@ -94,15 +105,18 @@ mod test {
     fn boxed_subscriber() {
         /// Test subscriber implementation
         struct TestSubscriber(f32);
-        impl Subscriber<f32> for TestSubscriber {
+        impl SubscriberTypes for TestSubscriber {
+            type Data = f32;
+        }
+        impl Subscriber for TestSubscriber {
             fn priority(&self) -> Priority {
                 Priority::new(21)
             }
-            fn handle_event(&self, data: &f32) {
+            fn handle_event(&self, data: &Self::Data) {
                 assert_eq!(*data, self.0);
             }
         }
-        let subscriber: Box<dyn Subscriber<f32>> = Box::new(TestSubscriber(42.0));
+        let subscriber: Box<dyn Subscriber<Data = f32>> = Box::new(TestSubscriber(42.0));
         subscriber.handle_event(&42.0);
         assert_eq!(subscriber.priority(), Priority::new(21));
     }

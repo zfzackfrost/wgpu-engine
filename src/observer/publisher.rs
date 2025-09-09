@@ -13,7 +13,7 @@ use super::{Priority, Subscriber};
 /// # Type Parameters
 /// * `D` - The type of data that will be sent to subscribers
 /// * `S` - The subscriber type that will handle events
-pub struct Publisher<D, S: Subscriber<D>> {
+pub struct Publisher<D, S: Subscriber<Data = D>> {
     /// Subscribers organized by priority (lower values = higher priority)
     registered: BTreeMap<Priority, Vec<(S, u64)>>,
     /// Counter for generating unique subscriber IDs
@@ -21,7 +21,7 @@ pub struct Publisher<D, S: Subscriber<D>> {
     /// Phantom data to maintain type safety for the data parameter
     _data: std::marker::PhantomData<D>,
 }
-impl<D, S: Subscriber<D>> Publisher<D, S> {
+impl<D, S: Subscriber<Data = D>> Publisher<D, S> {
     /// Creates a new empty publisher
     #[inline]
     pub(crate) fn new() -> Self {
@@ -46,7 +46,7 @@ impl<D, S: Subscriber<D>> Publisher<D, S> {
         // Generate unique ID for this subscriber
         let id = self.next_id;
         self.next_id += 1;
-        
+
         // Add subscriber to the appropriate priority group
         match self.registered.entry(listener.priority()) {
             BTreeMapEntry::Vacant(vacant_entry) => {
@@ -112,6 +112,8 @@ impl<D, S: Subscriber<D>> Publisher<D, S> {
 
 #[cfg(test)]
 mod test {
+    use crate::observer::SubscriberTypes;
+
     use super::*;
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -119,14 +121,17 @@ mod test {
     // Test data types
     type Value = i32;
     type ValueSeq = Rc<RefCell<Vec<Value>>>;
-    
+
     /// Test subscriber implementation that pushes its value to a shared vector
     struct TestSubscriber {
         value: Value,
         priority: Priority,
     }
 
-    impl Subscriber<ValueSeq> for TestSubscriber {
+    impl SubscriberTypes for TestSubscriber {
+        type Data = ValueSeq;
+    }
+    impl Subscriber for TestSubscriber {
         fn priority(&self) -> Priority {
             self.priority
         }

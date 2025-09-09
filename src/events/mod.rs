@@ -35,7 +35,7 @@ pub static EVENTS: LazyLock<Events> = LazyLock::new(|| {
 });
 
 // Type aliases for cleaner event publisher definitions
-type EventPublisher<Data> = Publisher<Data, Box<dyn Subscriber<Data>>>;
+type EventPublisher<Data> = Publisher<Data, Box<dyn Subscriber<Data = Data>>>;
 type MutEventPublisher<Data> = Mutex<EventPublisher<Data>>;
 type GuardEventPublisher<'a, Data> = MutexGuard<'a, EventPublisher<Data>>;
 
