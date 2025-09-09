@@ -11,24 +11,20 @@ use super::{Priority, Subscriber};
 /// (lower priority values are called first).
 ///
 /// # Type Parameters
-/// * `D` - The type of data that will be sent to subscribers
 /// * `S` - The subscriber type that will handle events
-pub struct Publisher<D, S: Subscriber<Data = D>> {
+pub struct Publisher<S: Subscriber> {
     /// Subscribers organized by priority (lower values = higher priority)
     registered: BTreeMap<Priority, Vec<(S, u64)>>,
     /// Counter for generating unique subscriber IDs
     next_id: u64,
-    /// Phantom data to maintain type safety for the data parameter
-    _data: std::marker::PhantomData<D>,
 }
-impl<D, S: Subscriber<Data = D>> Publisher<D, S> {
+impl<S: Subscriber> Publisher<S> {
     /// Creates a new empty publisher
     #[inline]
     pub(crate) fn new() -> Self {
         Self {
             registered: BTreeMap::new(),
             next_id: 1, // Start IDs at 1 (0 could be used as a sentinel value)
-            _data: Default::default(),
         }
     }
     /// Subscribes a listener to this publisher
@@ -99,7 +95,7 @@ impl<D, S: Subscriber<Data = D>> Publisher<D, S> {
     /// # Arguments
     /// * `data` - The event data to send to all subscribers
     #[inline]
-    pub fn notify(&self, data: &D) {
+    pub fn notify(&self, data: &S::Data) {
         // Iterate through priorities in ascending order (lower values first)
         for (_, listeners) in self.registered.iter() {
             // Call all listeners at this priority level
@@ -145,7 +141,7 @@ mod test {
     fn subscribe_notify() {
         // Shared vector to collect notification results
         let test_value: ValueSeq = Rc::new(RefCell::new(Vec::new()));
-        let mut publisher: Publisher<ValueSeq, TestSubscriber> = Publisher::new();
+        let mut publisher: Publisher<TestSubscriber> = Publisher::new();
 
         let subscriber_1 = TestSubscriber {
             value: 1,
@@ -195,7 +191,7 @@ mod test {
     #[test]
     fn subscribe_len_empty_unsubscribe() {
         // Test publisher state management methods
-        let mut publisher: Publisher<ValueSeq, TestSubscriber> = Publisher::new();
+        let mut publisher: Publisher<TestSubscriber> = Publisher::new();
 
         assert!(publisher.is_empty());
         assert_eq!(publisher.len(), 0);
