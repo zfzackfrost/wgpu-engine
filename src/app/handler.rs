@@ -206,6 +206,7 @@ impl ApplicationHandler<GfxState> for SharedApp {
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if !*self.exit.lock() {
             EVENTS.end_of_frame().notify(&());
+            EVENTS.maintain();
             return;
         }
         event_loop.exit();

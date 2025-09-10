@@ -79,6 +79,15 @@ impl Events {
             .boxed(),
         );
     }
+    pub(crate) fn maintain(&self) {
+        self.start_of_frame().maintain();
+        self.update().maintain();
+        self.mouse_move().maintain();
+        self.mouse_wheel().maintain();
+        self.mouse_button().maintain();
+        self.keyboard().maintain();
+        self.end_of_frame().maintain();
+    }
     /// Returns the last known mouse position
     ///
     /// Returns Vec2::ZERO if no mouse movement has been recorded yet.
