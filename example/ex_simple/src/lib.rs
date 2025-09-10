@@ -79,6 +79,15 @@ impl AppClient for SimpleClient {
                 })
                 .boxed(),
             );
+            EVENTS.keyboard().subscribe(
+                FnSubscriber::new(move |data: &KeyboardData| {
+                    if data.is_pressed && data.key_code == KeyCode::F11 {
+                        window::set_fullscreen(true);
+                    }
+                    Subscription::Keep
+                })
+                .boxed(),
+            );
         }
         // Get application state for GPU resource creation
         let app = app();
@@ -196,11 +205,11 @@ impl AppClient for SimpleClient {
 
     /// Update function called each frame (currently unused).
     fn update(&self, _delta_time: f32) {
-        log::info!(
-            "Delta time: {}s, Running time: {}s",
-            TIME.frame_delta(),
-            TIME.running_time()
-        );
+        // log::info!(
+        //     "Delta time: {}s, Running time: {}s",
+        //     TIME.frame_delta(),
+        //     TIME.running_time()
+        // );
     }
 
     /// Render function that draws the triangle.

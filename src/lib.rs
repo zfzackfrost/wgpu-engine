@@ -9,6 +9,7 @@ pub mod gfx;
 pub mod macros;
 pub mod observer;
 pub mod third_party;
+pub mod window;
 
 pub use app::*;
 pub use events::*;
