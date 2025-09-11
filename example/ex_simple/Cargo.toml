@@ -7,6 +7,7 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+encase = { version = "0.11.2", features = ["glam"] }
 wgpu-engine = { version = "0.1.0", path = "../.." }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

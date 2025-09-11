@@ -1065,6 +1065,7 @@ dependencies = [
 name = "ex_simple"
 version = "0.1.0"
 dependencies = [
+ "encase",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wgpu-engine",

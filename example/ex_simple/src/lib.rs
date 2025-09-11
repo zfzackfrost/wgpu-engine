@@ -7,6 +7,7 @@
 //! - Handling keyboard input for application exit
 //! - Rendering a single triangle with vertex buffers
 
+use encase::ShaderType;
 use wgpu_engine::observer::{FnSubscriber, Subscription};
 pub use wgpu_engine::third_party::*;
 pub use wgpu_engine::*;
@@ -18,16 +19,20 @@ pub use parking_lot::Mutex;
 /// The client manages a single render pipeline and responds to user input:
 /// - Mouse movement changes the background color
 /// - Escape key exits the application
-#[derive(educe::Educe)]
-#[educe(Debug)]
 struct SimpleClient {
     /// Render pipeline for drawing the triangle (protected by mutex for thread safety)
-    #[educe(Debug(ignore))]
     pipeline: Mutex<Option<wgpu::RenderPipeline>>,
-    #[educe(Debug(ignore))]
     vertices: Mutex<Option<gfx::VertexBuffer<gfx::Vertex2D>>>,
-    #[educe(Debug(ignore))]
     indices: Mutex<Option<gfx::IndexBuffer<u16>>>,
+
+    params: Mutex<Option<gfx::UniformBuffer<GpuParams>>>,
+    bind_groups: Mutex<Vec<wgpu::BindGroup>>,
+    bind_group_layouts: Mutex<Vec<wgpu::BindGroupLayout>>,
+}
+impl std::fmt::Debug for SimpleClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SimpleClient").finish_non_exhaustive()
+    }
 }
 impl SimpleClient {
     /// Creates a new SimpleClient instance wrapped in Arc for shared ownership.
@@ -39,6 +44,9 @@ impl SimpleClient {
             pipeline: Mutex::new(None),
             vertices: Mutex::new(None),
             indices: Mutex::new(None),
+            params: Mutex::new(None),
+            bind_groups: Mutex::new(Vec::new()),
+            bind_group_layouts: Mutex::new(Vec::new()),
         })
     }
 }
@@ -94,6 +102,45 @@ impl AppClient for SimpleClient {
         let mut state = app.state();
         let state = state.as_mut().unwrap();
 
+        let mut bind_groups = self.bind_groups.lock();
+        let mut bind_group_layouts = self.bind_group_layouts.lock();
+
+        *self.params.lock() = Some(gfx::UniformBuffer::new(
+            &state.device,
+            &GpuParams {
+                tint: glam::vec3(1.0, 1.0, 1.0),
+            },
+            wgpu::BufferUsages::COPY_DST,
+            None,
+        ));
+
+        bind_group_layouts.push(state.device.create_bind_group_layout(
+            &wgpu::BindGroupLayoutDescriptor {
+                label: Some("Group Layout 0"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            },
+        ));
+        bind_groups.push(state.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Group 0"),
+            layout: bind_group_layouts.last().unwrap(),
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: self.params.lock().as_ref().unwrap().as_entire_binding(),
+            }],
+        }));
+        drop(bind_groups);
+
+        let ref_bind_group_layouts: Vec<_> = bind_group_layouts.iter().collect();
+
         // Load and create shader module from embedded WGSL source
         let module_src = include_str!("triangle.wgsl");
         let module = state
@@ -107,7 +154,7 @@ impl AppClient for SimpleClient {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("triangle.wgsl Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &ref_bind_group_layouts,
                 push_constant_ranges: &[],
             });
 
@@ -205,11 +252,18 @@ impl AppClient for SimpleClient {
 
     /// Update function called each frame (currently unused).
     fn update(&self, _delta_time: f32) {
-        // log::info!(
-        //     "Delta time: {}s, Running time: {}s",
-        //     TIME.frame_delta(),
-        //     TIME.running_time()
-        // );
+        let app = app();
+        let mut state = app.state();
+        let state = state.as_mut().unwrap();
+
+        let gray = TIME.running_time().sin() * 0.5 + 0.5;
+        self.params.lock().as_ref().unwrap().write(
+            &state.queue,
+            0,
+            &GpuParams {
+                tint: glam::vec3(gray, gray, gray),
+            },
+        );
     }
 
     /// Render function that draws the triangle.
@@ -227,6 +281,9 @@ impl AppClient for SimpleClient {
             return;
         };
         rpass.set_pipeline(pipeline);
+        for (i, bind_group) in self.bind_groups.lock().iter().enumerate() {
+            rpass.set_bind_group(i as u32, bind_group, &[]);
+        }
         rpass.set_vertex_buffer(0, vertices.slice(..));
         rpass.set_index_buffer(indices.slice(..), indices.index_format());
         rpass.draw_indexed(0..indices.count(), 0, 0..1); // Draw `count` indices, 1 instance
@@ -260,6 +317,11 @@ impl SimpleClient {
             app().exit();
         }
     }
+}
+
+#[derive(ShaderType)]
+struct GpuParams {
+    tint: glam::Vec3,
 }
 
 // Define the application entry point with our SimpleClient

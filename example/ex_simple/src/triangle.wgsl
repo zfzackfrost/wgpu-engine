@@ -19,10 +19,16 @@ struct FragmentOut {
     @location(0) color: vec4f,
 };
 
+struct Params {
+    tint: vec3f,
+};
+@group(0) @binding(0)
+var<uniform> params: Params;
+
 @fragment
 fn fs_main(in: VertexOut) -> FragmentOut {
     var out: FragmentOut;
-    let rgb = pow(in.color.rgb, vec3f(2.2));
+    let rgb = pow(params.tint * in.color.rgb, vec3f(2.2));
     out.color = vec4f(rgb, in.color.a);
     return out;
 }
