@@ -139,7 +139,7 @@ impl<S: Subscriber> Publisher<S> {
 
 #[cfg(test)]
 mod test {
-    use crate::observer::{SubscriberTypes, Subscription};
+    use crate::observer::Subscription;
 
     use super::*;
     use std::cell::RefCell;
@@ -155,10 +155,8 @@ mod test {
         priority: Priority,
     }
 
-    impl SubscriberTypes for TestSubscriber {
-        type Data = ValueSeq;
-    }
     impl Subscriber for TestSubscriber {
+        type Data = ValueSeq;
         fn priority(&self) -> Priority {
             self.priority
         }

@@ -16,7 +16,8 @@ pub enum Subscription {
 ///
 /// Subscribers define their priority and how they handle incoming events.
 /// Lower priority values indicate higher priority (called first).
-pub trait Subscriber: Send + SubscriberTypes {
+pub trait Subscriber: Send {
+    type Data;
     /// Returns the priority of this subscriber
     ///
     /// Lower values indicate higher priority (called first).
@@ -30,15 +31,10 @@ pub trait Subscriber: Send + SubscriberTypes {
     /// * `data` - The event data to handle
     fn handle_event(&self, data: &Self::Data) -> Subscription;
 }
-pub trait SubscriberTypes {
-    type Data;
-}
 
-impl<T> SubscriberTypes for Box<dyn Subscriber<Data = T>> {
-    type Data = T;
-}
 /// Implementation for boxed subscribers to enable trait object usage
 impl<T> Subscriber for Box<dyn Subscriber<Data = T>> {
+    type Data = T;
     fn priority(&self) -> Priority {
         self.as_ref().priority()
     }
@@ -90,11 +86,9 @@ impl<T: Send + 'static, F: Fn(&T) -> Subscription + Send + 'static> FnSubscriber
         Box::new(self)
     }
 }
-impl<T: Send, F: Fn(&T) -> Subscription + Send> SubscriberTypes for FnSubscriber<T, F> {
-    type Data = T;
-}
 /// Subscriber trait implementation for FnSubscriber
 impl<T: Send, F: Fn(&T) -> Subscription + Send> Subscriber for FnSubscriber<T, F> {
+    type Data = T;
     fn priority(&self) -> Priority {
         self.priority
     }
@@ -113,10 +107,8 @@ mod test {
     fn boxed_subscriber() {
         /// Test subscriber implementation
         struct TestSubscriber(f32);
-        impl SubscriberTypes for TestSubscriber {
-            type Data = f32;
-        }
         impl Subscriber for TestSubscriber {
+            type Data = f32;
             fn priority(&self) -> Priority {
                 Priority::new(21)
             }
