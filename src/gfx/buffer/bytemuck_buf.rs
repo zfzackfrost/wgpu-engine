@@ -5,6 +5,7 @@ use std::marker::PhantomData;
 pub struct BytemuckBuffer<T: bytemuck::Pod + bytemuck::Zeroable> {
     #[educe(Deref)]
     buf: wgpu::Buffer,
+    label: Option<String>,
     _data: PhantomData<T>,
 }
 
@@ -23,6 +24,7 @@ impl<T: bytemuck::Pod + bytemuck::Zeroable> BytemuckBuffer<T> {
         });
         Self {
             buf,
+            label: label.map(String::from),
             _data: PhantomData,
         }
     }
@@ -41,11 +43,22 @@ impl<T: bytemuck::Pod + bytemuck::Zeroable> BytemuckBuffer<T> {
         });
         Self {
             buf,
+            label: label.map(String::from),
             _data: PhantomData,
         }
     }
+    pub fn label(&self) -> Option<&str> {
+        self.label.as_deref()
+    }
     pub fn write(&self, queue: &wgpu::Queue, offset: wgpu::BufferAddress, data: &[T]) {
         let data = bytemuck::cast_slice(data);
+        let requested_sz = data.len() as u64;
+        let sz = self.size();
+        assert!(
+            (requested_sz + offset) <= sz,
+            "Requested an out-of-bounds write for buffer: {}",
+            self.label().unwrap_or("<NO NAME>")
+        );
         queue.write_buffer(&self.buf, offset, data);
     }
     pub fn count(&self) -> u32 {
