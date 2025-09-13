@@ -8,10 +8,9 @@
 //! - Rendering a single triangle with vertex buffers
 
 use encase::ShaderType;
-use wgpu_engine::gfx::Vertex2D;
 use wgpu_engine::observer::{FnSubscriber, Subscription};
-pub use wgpu_engine::third_party::*;
-pub use wgpu_engine::*;
+use wgpu_engine::third_party::*;
+use wgpu_engine::*;
 
 pub use parking_lot::Mutex;
 
