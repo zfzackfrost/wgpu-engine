@@ -56,7 +56,7 @@ impl AppClient for SimpleClient {
     ///
     /// This method:
     /// 1. Subscribes to mouse movement and keyboard events
-    /// 2. Creates a shader module from the embedded triangle.wgsl source
+    /// 2. Creates a shader module from the embedded vertex_color.wgsl source
     /// 3. Sets up a basic render pipeline with no vertex buffers
     /// 4. Stores the pipeline for use during rendering
     /// 5. Sets up the vertex buffer and stores it for use during rendering
@@ -142,18 +142,18 @@ impl AppClient for SimpleClient {
         let ref_bind_group_layouts: Vec<_> = bind_group_layouts.iter().collect();
 
         // Load and create shader module from embedded WGSL source
-        let module_src = include_str!("triangle.wgsl");
+        let module_src = include_str!("vertex_color.wgsl");
         let module = state
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("triangle.wgsl"),
+                label: Some("vertex_color.wgsl"),
                 source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(module_src)),
             });
         // Create pipeline layout (no bind groups or push constants needed for this simple example)
         let layout = state
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("triangle.wgsl Layout"),
+                label: Some("vertex_color.wgsl Layout"),
                 bind_group_layouts: &ref_bind_group_layouts,
                 push_constant_ranges: &[],
             });
@@ -163,7 +163,7 @@ impl AppClient for SimpleClient {
         let pipeline = state
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("triangle.wgsl Pipeline"),
+                label: Some("vertex_color.wgsl Pipeline"),
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &module,
