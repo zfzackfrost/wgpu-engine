@@ -24,7 +24,7 @@
 ///     }
 /// }
 ///
-/// define_entry_point!(|| std::sync::Arc::new(MyApp) as SharedAppClient);
+/// define_entry_point!(std::sync::Arc::new(MyApp) as SharedAppClient);
 ///
 /// fn main() {
 ///     run().unwrap();
@@ -42,7 +42,7 @@ macro_rules! define_entry_point {
         }
 
         /// WebAssembly entry point
-        /// 
+        ///
         /// This function is automatically called when the WASM module is loaded.
         /// It sets up panic hooks and starts the application.
         #[cfg(target_arch = "wasm32")]
