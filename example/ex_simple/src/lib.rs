@@ -8,6 +8,7 @@
 //! - Rendering a single triangle with vertex buffers
 
 use encase::ShaderType;
+use wgpu_engine::gfx::Vertex2D;
 use wgpu_engine::observer::{FnSubscriber, Subscription};
 pub use wgpu_engine::third_party::*;
 pub use wgpu_engine::*;
@@ -22,8 +23,9 @@ pub use parking_lot::Mutex;
 struct SimpleClient {
     /// Render pipeline for drawing the triangle (protected by mutex for thread safety)
     pipeline: Mutex<Option<wgpu::RenderPipeline>>,
-    vertices: Mutex<Option<gfx::VertexBuffer<gfx::Vertex2D>>>,
-    indices: Mutex<Option<gfx::IndexBuffer<u16>>>,
+
+    mesh_index: Mutex<u8>,
+    meshes: Mutex<Vec<gfx::Mesh<gfx::Vertex2D, u16>>>,
 
     params: Mutex<Option<gfx::UniformBuffer<GpuParams>>>,
     bind_groups: Mutex<Vec<wgpu::BindGroup>>,
@@ -42,8 +44,8 @@ impl SimpleClient {
     fn new() -> SharedAppClient {
         std::sync::Arc::new(Self {
             pipeline: Mutex::new(None),
-            vertices: Mutex::new(None),
-            indices: Mutex::new(None),
+            mesh_index: Mutex::new(0),
+            meshes: Mutex::new(Vec::new()),
             params: Mutex::new(None),
             bind_groups: Mutex::new(Vec::new()),
             bind_group_layouts: Mutex::new(Vec::new()),
@@ -203,19 +205,19 @@ impl AppClient for SimpleClient {
         *self.pipeline.lock() = Some(pipeline);
 
         // The indices of the quad to render
-        const INDICES: &[u16] = &[
+        const QUAD_INDICES: &[u16] = &[
             0, 1, 2, // Triangle 0
             2, 3, 0, // Triangle 1
         ];
-        *self.indices.lock() = Some(gfx::IndexBuffer::new_filled(
+        let quad_indices = Some(gfx::IndexBuffer::new_filled(
             &state.device,
-            INDICES,
+            QUAD_INDICES,
             wgpu::BufferUsages::empty(),
-            Some("Indices"),
+            Some("Quad Indices"),
         ));
 
         // The vertices of the quad to render
-        const VERTICES: &[gfx::Vertex2D] = &[
+        const QUAD_VERTICES: &[gfx::Vertex2D] = &[
             // Top-right
             gfx::Vertex2D {
                 position: [0.5, 0.5],
@@ -241,13 +243,46 @@ impl AppClient for SimpleClient {
                 color: [1.0, 0.0, 0.0, 1.0],
             },
         ];
-        // Create and store the vertex buffer
-        *self.vertices.lock() = Some(gfx::VertexBuffer::new_filled(
+        let mut meshes = self.meshes.lock();
+
+        // Create the quad vertex buffer
+        let quad_vertices = gfx::VertexBuffer::new_filled(
             &state.device,
-            VERTICES,
+            QUAD_VERTICES,
             wgpu::BufferUsages::empty(),
-            Some("Vertices"),
-        ));
+            Some("Quad Vertices"),
+        );
+        let quad = gfx::Mesh::new(quad_vertices, quad_indices);
+        meshes.push(quad);
+
+        const TRI_VERTICES: &[gfx::Vertex2D] = &[
+            // Top-Center
+            gfx::Vertex2D {
+                position: [0.0, 0.5],
+                tex_coords: [0.5, 0.0],
+                color: [0.0, 0.0, 1.0, 1.0],
+            },
+            // Bottom-Left
+            gfx::Vertex2D {
+                position: [-0.5, -0.5],
+                tex_coords: [0.0, 1.0],
+                color: [1.0, 1.0, 0.0, 1.0],
+            },
+            // Bottom-Right
+            gfx::Vertex2D {
+                position: [0.5, -0.5],
+                tex_coords: [1.0, 1.0],
+                color: [1.0, 0.0, 0.0, 1.0],
+            },
+        ];
+        let tri_vertices = gfx::VertexBuffer::new_filled(
+            &state.device,
+            TRI_VERTICES,
+            wgpu::BufferUsages::empty(),
+            Some("Tri Vertices"),
+        );
+        let tri = gfx::Mesh::new(tri_vertices, None);
+        meshes.push(tri);
     }
 
     /// Update function called each frame (currently unused).
@@ -274,19 +309,15 @@ impl AppClient for SimpleClient {
         let Some(pipeline) = &*self.pipeline.lock() else {
             return;
         };
-        let Some(vertices) = &*self.vertices.lock() else {
-            return;
-        };
-        let Some(indices) = &*self.indices.lock() else {
-            return;
-        };
+        let meshes = self.meshes.lock();
+        let mesh = &meshes[*self.mesh_index.lock() as usize];
+
         rpass.set_pipeline(pipeline);
         for (i, bind_group) in self.bind_groups.lock().iter().enumerate() {
             rpass.set_bind_group(i as u32, bind_group, &[]);
         }
-        rpass.set_vertex_buffer(0, vertices.slice(..));
-        rpass.set_index_buffer(indices.slice(..), indices.index_format());
-        rpass.draw_indexed(0..indices.count(), 0, 0..1); // Draw `count` indices, 1 instance
+        mesh.bind(rpass);
+        mesh.draw(0..1, rpass);
     }
 }
 impl SimpleClient {
@@ -313,8 +344,18 @@ impl SimpleClient {
 
     /// Handles keyboard events, specifically the Escape key for application exit.
     fn handle_keyboard(&self, data: &KeyboardData) {
-        if data.is_pressed && data.key_code == KeyCode::Escape {
-            app().exit();
+        if !data.is_pressed {
+            return;
+        }
+        match data.key_code {
+            KeyCode::Escape => {
+                app().exit();
+            }
+            KeyCode::Space => {
+                let mut mesh_index = self.mesh_index.lock();
+                *mesh_index = (*mesh_index + 1) % 2;
+            }
+            _ => {}
         }
     }
 }
