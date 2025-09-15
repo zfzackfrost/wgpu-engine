@@ -24,7 +24,7 @@ struct SimpleClient {
     pipeline: Mutex<Option<wgpu::RenderPipeline>>,
 
     mesh_index: Mutex<u8>,
-    meshes: Mutex<Vec<gfx::Mesh<gfx::Vertex2D, u16>>>,
+    meshes: Mutex<Vec<gfx::Mesh<gfx::Vertex3D, u16>>>,
 
     params: Mutex<Option<gfx::UniformBuffer<GpuParams>>>,
     bind_groups: Mutex<Vec<wgpu::BindGroup>>,
@@ -142,7 +142,7 @@ impl AppClient for SimpleClient {
 
         let ref_bind_group_layouts: Vec<_> = bind_group_layouts.iter().collect();
 
-        let vertex_info = gfx::Vertex2D::info();
+        let vertex_info = gfx::Vertex3D::info();
         // Load and create shader module from embedded WGSL source
         let module_src = include_str!("vertex_color.wgsl");
         let module = gfx::make_shader_module(
@@ -170,7 +170,7 @@ impl AppClient for SimpleClient {
                     module: &module,
                     entry_point: Some("vs_main"),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    buffers: &[vertex_info.describe()], // One vertex buffer (Vertex2D)
+                    buffers: &[vertex_info.describe()], // One vertex buffer (Vertex3D)
                 },
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -181,7 +181,13 @@ impl AppClient for SimpleClient {
                     polygon_mode: wgpu::PolygonMode::Fill,
                     conservative: false,
                 },
-                depth_stencil: None, // No depth testing for this simple example
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: gfx::Texture2D::DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }), // No depth testing for this simple example
                 multisample: wgpu::MultisampleState {
                     count: 1, // No multisampling
                     mask: !0,
@@ -216,30 +222,34 @@ impl AppClient for SimpleClient {
         ));
 
         // The vertices of the quad to render
-        const QUAD_VERTICES: &[gfx::Vertex2D] = &[
+        let quad_vertices = &[
             // Top-right
-            gfx::Vertex2D {
-                position: [0.5, 0.5],
+            gfx::Vertex3D {
+                position: [0.5, 0.5, 0.1],
                 tex_coords: [0.0; 2], // Not used in this example
                 color: [0.0, 0.0, 1.0, 1.0],
+                ..Default::default()
             },
             // Top-left
-            gfx::Vertex2D {
-                position: [-0.5, 0.5],
+            gfx::Vertex3D {
+                position: [-0.5, 0.5, 0.1],
                 tex_coords: [0.0; 2], // Not used in this example
                 color: [1.0, 1.0, 1.0, 1.0],
+                ..Default::default()
             },
             // Bottom-Left
-            gfx::Vertex2D {
-                position: [-0.5, -0.5],
+            gfx::Vertex3D {
+                position: [-0.5, -0.5, 0.1],
                 tex_coords: [0.0; 2], // Not used in this example
                 color: [1.0, 1.0, 0.0, 1.0],
+                ..Default::default()
             },
             // Bottom-right
-            gfx::Vertex2D {
-                position: [0.5, -0.5],
+            gfx::Vertex3D {
+                position: [0.5, -0.5, 0.1],
                 tex_coords: [0.0; 2], // Not used in this example
                 color: [1.0, 0.0, 0.0, 1.0],
+                ..Default::default()
             },
         ];
         let mut meshes = self.meshes.lock();
@@ -247,36 +257,39 @@ impl AppClient for SimpleClient {
         // Create the quad vertex buffer
         let quad_vertices = gfx::VertexBuffer::new_filled(
             &state.device,
-            QUAD_VERTICES,
+            quad_vertices,
             wgpu::BufferUsages::empty(),
             Some("Quad Vertices"),
         );
         let quad = gfx::Mesh::new(quad_vertices, quad_indices);
         meshes.push(quad);
 
-        const TRI_VERTICES: &[gfx::Vertex2D] = &[
+        let tri_vertices = &[
             // Top-Center
-            gfx::Vertex2D {
-                position: [0.0, 0.5],
+            gfx::Vertex3D {
+                position: [0.0, 0.5, 0.0],
                 tex_coords: [0.5, 0.0],
                 color: [0.0, 0.0, 1.0, 1.0],
+                ..Default::default()
             },
             // Bottom-Left
-            gfx::Vertex2D {
-                position: [-0.5, -0.5],
+            gfx::Vertex3D {
+                position: [-0.5, -0.5, 0.0],
                 tex_coords: [0.0, 1.0],
                 color: [1.0, 1.0, 0.0, 1.0],
+                ..Default::default()
             },
             // Bottom-Right
-            gfx::Vertex2D {
-                position: [0.5, -0.5],
+            gfx::Vertex3D {
+                position: [0.5, -0.5, 0.0],
                 tex_coords: [1.0, 1.0],
                 color: [1.0, 0.0, 0.0, 1.0],
+                ..Default::default()
             },
         ];
         let tri_vertices = gfx::VertexBuffer::new_filled(
             &state.device,
-            TRI_VERTICES,
+            tri_vertices,
             wgpu::BufferUsages::empty(),
             Some("Tri Vertices"),
         );
@@ -308,15 +321,22 @@ impl AppClient for SimpleClient {
         let Some(pipeline) = &*self.pipeline.lock() else {
             return;
         };
+        let mesh_index = *self.mesh_index.lock() as usize;
         let meshes = self.meshes.lock();
-        let mesh = &meshes[*self.mesh_index.lock() as usize];
+        let meshes = if mesh_index < meshes.len() {
+            &meshes[mesh_index..mesh_index + 1]
+        } else {
+            &meshes[..]
+        };
 
         rpass.set_pipeline(pipeline);
         for (i, bind_group) in self.bind_groups.lock().iter().enumerate() {
             rpass.set_bind_group(i as u32, bind_group, &[]);
         }
-        mesh.bind(rpass);
-        mesh.draw(0..1, rpass);
+        for mesh in meshes {
+            mesh.bind(rpass);
+            mesh.draw(0..1, rpass);
+        }
     }
 }
 impl SimpleClient {
@@ -352,7 +372,7 @@ impl SimpleClient {
             }
             KeyCode::Space => {
                 let mut mesh_index = self.mesh_index.lock();
-                *mesh_index = (*mesh_index + 1) % 2;
+                *mesh_index = (*mesh_index + 1) % 3;
             }
             _ => {}
         }

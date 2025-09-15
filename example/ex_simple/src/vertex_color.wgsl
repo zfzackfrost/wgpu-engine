@@ -8,7 +8,7 @@ struct VertexOut {
 @vertex
 fn vs_main(in: VertexBuf) -> VertexOut {
     var out: VertexOut;
-    out.clip_position = vec4f(in.position, 0.0, 1.0);
+    out.clip_position = vec4f(in.position, 1.0);
     out.color = in.color;
     return out;
 }

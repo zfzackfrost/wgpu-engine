@@ -8,6 +8,7 @@ use std::sync::Arc;
 use winit::window::Window;
 
 use crate::app;
+use crate::gfx::Texture2D;
 
 /// Central rendering state that manages all WGPU resources
 ///
@@ -29,6 +30,9 @@ pub struct GfxState {
     pub window: Option<Arc<Window>>,
     /// Surface configuration for presentation
     pub config: Option<wgpu::SurfaceConfiguration>,
+
+    /// Depth buffer texture
+    pub depth_buffer: Texture2D,
 
     /// Internal flag tracking if surface has been configured
     pub(crate) is_surface_configured: bool,
@@ -87,6 +91,14 @@ impl GfxState {
         let config = surface
             .as_ref()
             .map(|surface| Self::initial_surface_config(surface, &adapter, size.0, size.1));
+
+        let depth_buffer = Texture2D::new_attachment(
+            &device,
+            Texture2D::DEPTH_FORMAT,
+            size,
+            wgpu::TextureUsages::empty(),
+            Some("Depth Buffer"),
+        );
         Ok(Self {
             adapter,
             device,
@@ -96,6 +108,7 @@ impl GfxState {
             is_surface_configured: false,
             config,
             clear_color: glam::vec4(0.0, 0.0, 0.0, 1.0),
+            depth_buffer,
         })
     }
 
@@ -211,7 +224,14 @@ impl GfxState {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: self.depth_buffer.view(),
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
