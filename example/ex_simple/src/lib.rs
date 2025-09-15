@@ -138,7 +138,6 @@ impl AppClient for SimpleClient {
                 resource: self.params.lock().as_ref().unwrap().as_entire_binding(),
             }],
         }));
-        drop(bind_groups);
 
         let ref_bind_group_layouts: Vec<_> = bind_group_layouts.iter().collect();
 
@@ -148,7 +147,8 @@ impl AppClient for SimpleClient {
         let module = gfx::make_shader_module(
             &state.device,
             module_src,
-            Some(&vertex_info.shader_lib()),
+            vertex_info.as_ref(),
+            None,
             Some("vertex_color.wgsl"),
         );
         // Create pipeline layout (no bind groups or push constants needed for this simple example)

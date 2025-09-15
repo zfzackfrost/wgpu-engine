@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
+use crate::gfx::VertexInfo;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShaderCode(pub String);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ShaderPath(pub String);
 
+#[derive(Debug, Clone)]
 pub struct ShaderLib {
     sources: HashMap<ShaderPath, ShaderCode>,
 }
@@ -53,13 +56,25 @@ impl Default for ShaderLib {
     }
 }
 
+fn default_shaderlib(lib: Option<&ShaderLib>, vertex_info: &dyn VertexInfo) -> ShaderLib {
+    let mut lib = lib.cloned().unwrap_or(ShaderLib::new());
+    lib.extend([
+        (
+            ShaderPath("struct/VertexBuf".into()),
+            vertex_info.shader_code(),
+        ), // VertexBuf
+    ]);
+    lib
+}
 pub fn make_shader_module(
     device: &wgpu::Device,
     code: &str,
+    vertex_info: &dyn VertexInfo,
     lib: Option<&ShaderLib>,
     label: Option<&str>,
 ) -> wgpu::ShaderModule {
-    let code = proc_shader_code(code, lib);
+    let lib = default_shaderlib(lib, vertex_info);
+    let code = proc_shader_code(code, Some(&lib));
     device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label,
         source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(&code)),
