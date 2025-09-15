@@ -2,16 +2,13 @@ struct VertexOut {
     @builtin(position) clip_position: vec4f,
     @location(0) color: vec4f,
 };
-struct VertexIn {
-    @location(0) positon: vec2f,
-    @location(1) tex_coords: vec2f,
-    @location(2) color: vec4f,
-};
+
+/// @include "struct/VertexBuf"
 
 @vertex
-fn vs_main(in: VertexIn) -> VertexOut {
+fn vs_main(in: VertexBuf) -> VertexOut {
     var out: VertexOut;
-    out.clip_position = vec4f(in.positon, 0.0, 1.0);
+    out.clip_position = vec4f(in.position, 0.0, 1.0);
     out.color = in.color;
     return out;
 }

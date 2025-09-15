@@ -1,5 +1,7 @@
 use std::mem::size_of;
 
+use crate::gfx::{ShaderCode, ShaderLib, ShaderPath};
+
 /// Trait for vertex types that can be used with the graphics pipeline.
 ///
 /// Types implementing this trait must be safely transmutable to bytes (`Pod`)
@@ -13,6 +15,7 @@ pub trait Vertex: bytemuck::Pod + bytemuck::Zeroable {
 pub trait VertexInfo {
     /// Returns the vertex buffer layout describing attribute locations and formats.
     fn describe(&self) -> wgpu::VertexBufferLayout<'_>;
+    fn shader_lib(&self) -> ShaderLib;
 }
 
 /// Type alias for boxed vertex info objects.
@@ -60,6 +63,21 @@ impl Vertex for Vertex2D {
                     attributes: ATTRS,
                 }
             }
+            fn shader_lib(&self) -> ShaderLib {
+                const CODE: &str = r#"
+                struct VertexBuf {
+                    @location(0) position: vec2f,
+                    @location(1) tex_coords: vec2f,
+                    @location(2) color: vec4f,
+                };
+                "#;
+                ShaderLib::from_iter([
+                    (
+                        ShaderPath("struct/VertexBuf".into()),
+                        ShaderCode(CODE.into()),
+                    ), // VertexBuf
+                ])
+            }
         }
         Box::new(Info)
     }
@@ -101,6 +119,22 @@ impl Vertex for Vertex3D {
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: ATTRS,
                 }
+            }
+            fn shader_lib(&self) -> ShaderLib {
+                const CODE: &str = r#"
+                struct VertexBuf {
+                    @location(0) position: vec3f,
+                    @location(1) normal: vec3f,
+                    @location(2) tex_coords: vec2f,
+                    @location(3) color: vec4f,
+                };
+                "#;
+                ShaderLib::from_iter([
+                    (
+                        ShaderPath("struct/VertexBuf".into()),
+                        ShaderCode(CODE.into()),
+                    ), // VertexBuf
+                ])
             }
         }
         Box::new(Info)

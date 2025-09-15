@@ -142,14 +142,15 @@ impl AppClient for SimpleClient {
 
         let ref_bind_group_layouts: Vec<_> = bind_group_layouts.iter().collect();
 
+        let vertex_info = gfx::Vertex2D::info();
         // Load and create shader module from embedded WGSL source
         let module_src = include_str!("vertex_color.wgsl");
-        let module = state
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("vertex_color.wgsl"),
-                source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(module_src)),
-            });
+        let module = gfx::make_shader_module(
+            &state.device,
+            module_src,
+            Some(&vertex_info.shader_lib()),
+            Some("vertex_color.wgsl"),
+        );
         // Create pipeline layout (no bind groups or push constants needed for this simple example)
         let layout = state
             .device
@@ -159,7 +160,6 @@ impl AppClient for SimpleClient {
                 push_constant_ranges: &[],
             });
 
-        let vertex_info = gfx::Vertex2D::info();
         // Create render pipeline with vertex and fragment shaders
         let pipeline = state
             .device
